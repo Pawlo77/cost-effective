@@ -79,3 +79,7 @@ class MLflowTrackingConfig:
         if mapping.get("tracking_uri") == "mlruns":
             mapping = {**mapping, "tracking_uri": "sqlite:///mlruns.db"}
         return cls(**dict(mapping))
+
+@dataclass(frozen=True, slots=True)
+class ExperimentConfig:
+    """Configuration for the experiment."""
