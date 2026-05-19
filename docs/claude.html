@@ -1,0 +1,484 @@
+<style>
+h2.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);font-size:15px;color:var(--color-text-primary);line-height:1.7}
+.wrap{max-width:680px;padding:1.5rem 0}
+.nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:2rem;border-bottom:0.5px solid var(--color-border-tertiary);padding-bottom:1rem}
+.nav button{font-size:12px;padding:5px 12px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-secondary);cursor:pointer;font-family:var(--font-sans);transition:all 0.15s}
+.nav button.active{background:var(--color-background-secondary);color:var(--color-text-primary);border-color:var(--color-border-primary);font-weight:500}
+.section{display:none}.section.active{display:block}
+h1{font-size:20px;font-weight:500;margin-bottom:4px}
+.subtitle{font-size:13px;color:var(--color-text-secondary);margin-bottom:1.5rem}
+h2{font-size:16px;font-weight:500;margin:1.5rem 0 0.75rem}
+h3{font-size:14px;font-weight:500;margin:1rem 0 0.4rem;color:var(--color-text-secondary)}
+p{margin-bottom:0.75rem;font-size:14px;line-height:1.7}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem;margin-bottom:1rem}
+.badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:var(--border-radius-md);font-weight:500;margin-right:4px}
+.badge-info{background:var(--color-background-info);color:var(--color-text-info)}
+.badge-warn{background:var(--color-background-warning);color:var(--color-text-warning)}
+.badge-success{background:var(--color-background-success);color:var(--color-text-success)}
+.badge-danger{background:var(--color-background-danger);color:var(--color-text-danger)}
+.formula{background:var(--color-background-secondary);border-left:3px solid #7F77DD;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:0.75rem 1rem;font-family:var(--font-mono);font-size:13px;margin:0.75rem 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1rem}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:1rem}
+.metric-card{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:0.75rem 1rem}
+.metric-label{font-size:12px;color:var(--color-text-secondary);margin-bottom:2px}
+.metric-val{font-size:20px;font-weight:500}
+.step{display:flex;gap:12px;margin-bottom:1rem;align-items:flex-start}
+.step-num{min-width:24px;height:24px;border-radius:50%;background:#EEEDFE;color:#3C3489;font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:center;margin-top:2px}
+.step-content{flex:1}
+.step-title{font-size:14px;font-weight:500;margin-bottom:2px}
+.step-desc{font-size:13px;color:var(--color-text-secondary);line-height:1.6}
+.week-row{display:grid;grid-template-columns:80px 1fr 1fr 1fr;gap:8px;margin-bottom:8px;align-items:start}
+.week-label{font-size:12px;font-weight:500;color:var(--color-text-secondary);padding-top:6px}
+.task-block{border-radius:var(--border-radius-md);padding:6px 10px;font-size:12px;line-height:1.5}
+.ta{background:#E6F1FB;color:#0C447C}
+.tb{background:#EEEDFE;color:#3C3489}
+.tc{background:#E1F5EE;color:#085041}
+.week-header{display:grid;grid-template-columns:80px 1fr 1fr 1fr;gap:8px;margin-bottom:6px}
+.wh-cell{font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.04em}
+.divider{border:none;border-top:0.5px solid var(--color-border-tertiary);margin:1.25rem 0}
+.toc-row{display:flex;gap:12px;align-items:baseline;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.toc-num{font-size:12px;font-weight:500;color:var(--color-text-secondary);min-width:60px}
+.toc-title{font-size:14px;font-weight:500}
+.toc-detail{font-size:12px;color:var(--color-text-secondary);line-height:1.5;margin-top:2px}
+.slide-row{display:flex;gap:12px;margin-bottom:10px;align-items:flex-start}
+.slide-num{min-width:32px;height:32px;border-radius:var(--border-radius-md);background:#FAC775;color:#412402;font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:center}
+.slide-content{flex:1}
+.slide-title{font-size:14px;font-weight:500}
+.slide-desc{font-size:12px;color:var(--color-text-secondary);line-height:1.6}
+.insight{background:#FAEEDA;border-radius:var(--border-radius-md);padding:0.75rem 1rem;margin:0.75rem 0;font-size:13px;color:#412402}
+.insight strong{color:#633806}
+.warning-box{background:#FCEBEB;border-radius:var(--border-radius-md);padding:0.75rem 1rem;margin:0.75rem 0;font-size:13px;color:#501313}
+code{font-family:var(--font-mono);font-size:12px;background:var(--color-background-secondary);padding:1px 5px;border-radius:4px}
+</style>
+
+<div class="wrap">
+<h2 class="sr-only">ML project execution plan: cost-sensitive classification with custom scoring</h2>
+<h1>ML Project Execution Plan</h1>
+<div class="subtitle">Cost-sensitive classification · 4 weeks · 3 members · Deadline June 8, 2026</div>
+
+<nav class="nav">
+  <button class="active" onclick="show('s1',this)">1. Scoring Strategy</button>
+  <button onclick="show('s2',this)">2. Feature Selection</button>
+  <button onclick="show('s3',this)">3. Modeling & Threshold</button>
+  <button onclick="show('s4',this)">4. Timeline</button>
+  <button onclick="show('s5',this)">5. Report & Slides</button>
+</nav>
+
+<!-- SECTION 1 -->
+<div id="s1" class="section active">
+  <h2>The scoring function, decoded</h2>
+  <div class="formula">Score = (TP × 10) − (FP × 5) − (NoVariables × 200)</div>
+  <p>This is not a standard ML metric — it is a <strong>profit function</strong> with three competing forces. Understanding the math before touching any data is the single most important step of this project.</p>
+
+  <h3>Break-even analysis per variable</h3>
+  <div class="grid3">
+    <div class="metric-card">
+      <div class="metric-label">Cost of 1 feature</div>
+      <div class="metric-val" style="color:#A32D2D">−200 pts</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">TPs needed to recover it</div>
+      <div class="metric-val" style="color:#185FA5">+20 TPs</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Optimal threshold (math)</div>
+      <div class="metric-val" style="color:#0F6E56">p > 0.333</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>The threshold derivation</h3>
+    <p>For each customer you predict positive, their expected score contribution is:</p>
+    <div class="formula">E[score] = 10 × p(convert) − 5 × p(not convert) = 15p − 5</div>
+    <p>Setting this > 0 gives <code>p > 1/3 ≈ 0.333</code>. The default threshold of 0.5 is too conservative — you leave profitable TPs on the table. Tune aggressively downward, but never below 0.333 in expectation.</p>
+  </div>
+
+  <div class="insight"><strong>Key insight:</strong> The variable penalty (200 pts) dwarfs per-prediction gains. A feature that only marginally lifts TP rate is almost certainly net-negative. Target 5–15 features maximum.</div>
+
+  <h2>Variable count targets</h2>
+  <div class="grid2">
+    <div class="card">
+      <div class="badge badge-success">Conservative</div>
+      <h3 style="margin-top:8px">5–10 variables</h3>
+      <p>Cost: 1,000–2,000 pts. Low risk. Requires only 100–200 TPs on 1,000 predictions to break even on feature costs alone. Suitable if conversion rate in test set is unknown.</p>
+    </div>
+    <div class="card">
+      <div class="badge badge-warn">Aggressive</div>
+      <h3 style="margin-top:8px">11–20 variables</h3>
+      <p>Cost: 2,200–4,000 pts. Only justified if each marginal feature provably adds ≥20 TPs in cross-validation. Validate every feature addition with the custom CV scorer.</p>
+    </div>
+  </div>
+  <div class="warning-box"><strong>Hard rule:</strong> Never add a feature because it improves ROC-AUC or F1. Only add it if it improves your custom business score in held-out CV folds.</div>
+
+  <h2>Trade-off summary</h2>
+  <div class="card">
+    <div style="display:flex;gap:16px;align-items:center;margin-bottom:10px">
+      <div style="flex:1;text-align:center;padding:10px;background:#FCEBEB;border-radius:var(--border-radius-md)">
+        <div style="font-size:11px;color:#A32D2D;font-weight:500;margin-bottom:4px">HURTS SCORE</div>
+        <div style="font-size:13px;color:#501313">False Positives (−5 each)<br>Extra Features (−200 each)<br>FP/FN in wrong predictions</div>
+      </div>
+      <div style="font-size:20px;color:var(--color-text-secondary)">vs</div>
+      <div style="flex:1;text-align:center;padding:10px;background:#EAF3DE;border-radius:var(--border-radius-md)">
+        <div style="font-size:11px;color:#3B6D11;font-weight:500;margin-bottom:4px">HELPS SCORE</div>
+        <div style="font-size:13px;color:#173404">True Positives (+10 each)<br>Fewer features used<br>High precision ≥ recall</div>
+      </div>
+    </div>
+    <p style="font-size:13px;color:var(--color-text-secondary)">FP penalty is half the TP reward, so precision matters but recall is still valuable. A model that is too conservative (very high precision, very low recall) sacrifices TPs unnecessarily. Balance: target precision ≥ 0.65 on your 1,000 predictions.</p>
+  </div>
+</div>
+
+<!-- SECTION 2 -->
+<div id="s2" class="section">
+  <h2>Feature selection strategy</h2>
+  <p>With 500 anonymous variables and a 200-point penalty per feature, this is the highest-leverage part of your entire project. Use a three-stage funnel.</p>
+
+  <div class="card">
+    <div class="badge badge-info">Stage 1 — Broad filter</div>
+    <h2 style="margin-top:10px">Univariate + tree-based importance</h2>
+    <p><strong>Goal:</strong> Reduce 500 → ~50–80 candidates using fast, model-agnostic filters.</p>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <div class="step-title">Mutual information filter</div>
+        <div class="step-desc">Use <code>sklearn.feature_selection.mutual_info_classif</code> to score all 500 features against the binary label. This captures non-linear dependencies. Eliminate the bottom 60–70% of features.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <div class="step-title">LightGBM / XGBoost feature importance</div>
+        <div class="step-desc">Train a quick tree model on all remaining features. Extract <code>feature_importances_</code> (gain-based). Keep the top 50–80 by combined gain. This is fast and handles multicollinearity implicitly via tree structure.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <div class="step-title">Remove near-zero variance and duplicate columns</div>
+        <div class="step-desc">Check variance thresholding (<code>VarianceThreshold</code>) and correlation matrix — remove one of any pair with <code>|corr| > 0.95</code>. Free eliminations that cost nothing.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="badge badge-warn">Stage 2 — Regularisation</div>
+    <h2 style="margin-top:10px">L1 / LASSO selection</h2>
+    <p><strong>Goal:</strong> Reduce ~80 → 15–30 using penalty-based sparsity.</p>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-content">
+        <div class="step-title">Logistic Regression with L1 penalty</div>
+        <div class="step-desc">Fit <code>LogisticRegression(penalty='l1', solver='saga', C=tunable)</code> across the Stage 1 survivors. L1 drives irrelevant coefficients to exactly zero. Try a range of C values (0.001 to 1.0) and select features that survive across multiple C levels — these are the most robust.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-content">
+        <div class="step-title">LightGBM with strong regularisation</div>
+        <div class="step-desc">Use <code>reg_alpha</code> (L1) and <code>min_child_samples</code> tuned high. Features with zero splits in 5-fold CV are eliminated. The union of L1-Logistic and LGBM selections gives your candidate pool.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="badge badge-success">Stage 3 — Business-score refinement</div>
+    <h2 style="margin-top:10px">Custom-scorer RFECV + greedy search</h2>
+    <p><strong>Goal:</strong> Reduce ~30 → final 5–15, validated against the exact business metric.</p>
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-content">
+        <div class="step-title">RFECV with custom scorer</div>
+        <div class="step-desc">Run <code>RFECV(estimator=lgbm, cv=5, scoring=custom_scorer)</code> on your 30-feature pool. This iteratively removes the least important feature and measures the change in your actual business score, not AUC.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">7</div>
+      <div class="step-content">
+        <div class="step-title">Forward greedy search (the deciding step)</div>
+        <div class="step-desc">Start from your top 5 features. Add one at a time: if the custom CV score improves by more than 200 pts (the cost of adding one feature), keep it. Otherwise discard. This directly optimises the scoring function. Stop when no candidate passes the 200-pt threshold.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">8</div>
+      <div class="step-content">
+        <div class="step-title">Permutation importance validation</div>
+        <div class="step-desc">On your final model, run <code>permutation_importance</code> from sklearn. Any feature whose removal does not degrade the business score by at least 200 pts should be dropped from the final submission.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="insight"><strong>Critical:</strong> Run all feature selection inside your CV loop. Leaking feature selection information across folds inflates scores and produces a falsely optimistic variable set.</div>
+</div>
+
+<!-- SECTION 3 -->
+<div id="s3" class="section">
+  <h2>Recommended models</h2>
+  <div class="grid3">
+    <div class="card">
+      <div class="badge badge-info">Primary</div>
+      <h3 style="margin-top:8px">LightGBM</h3>
+      <p style="font-size:13px">Best all-round for tabular imbalanced data. Fast training allows extensive Optuna hyperparameter search. Native support for <code>scale_pos_weight</code> and custom objectives. Use as your main candidate.</p>
+    </div>
+    <div class="card">
+      <div class="badge badge-warn">Ensemble partner</div>
+      <h3 style="margin-top:8px">XGBoost</h3>
+      <p style="font-size:13px">Strong alternative that often predicts differently enough from LGBM for blending. Use <code>eval_metric='aucpr'</code> during training and tune <code>max_depth</code>, <code>subsample</code>, <code>colsample_bytree</code>.</p>
+    </div>
+    <div class="card">
+      <div class="badge badge-success">Baseline + sparse</div>
+      <h3 style="margin-top:8px">Logistic Regression L1</h3>
+      <p style="font-size:13px">Invaluable as an interpretable baseline and for the final report. Naturally produces sparse models. If it achieves competitive scores with ≤10 features, its simplicity could outperform complex models after the −200 penalty.</p>
+    </div>
+  </div>
+
+  <hr class="divider">
+  <h2>Handling class imbalance</h2>
+  <div class="card">
+    <div class="grid2">
+      <div>
+        <h3>In the model</h3>
+        <p style="font-size:13px">Set <code>scale_pos_weight = n_neg / n_pos</code> in LGBM/XGBoost. This re-weights the loss function without altering the dataset.</p>
+      </div>
+      <div>
+        <h3>In the data (optional)</h3>
+        <p style="font-size:13px">SMOTE or ADASYN on training fold only (never on validation). Test whether oversampling actually improves your custom score — it often does not for tree models.</p>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+  <h2>Threshold tuning — the profit curve method</h2>
+  <p>Standard classifiers output probabilities. The question is: which probability cutoff maximises your score when selecting at most 1,000 clients?</p>
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-content">
+      <div class="step-title">Get out-of-fold probability predictions</div>
+      <div class="step-desc">Use <code>cross_val_predict(method='predict_proba')</code> on training data to get OOF probabilities for all 5,000 training clients. These are unbiased estimates of the model's confidence.</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-content">
+      <div class="step-title">Sort descending by predicted probability</div>
+      <div class="step-desc">Rank all training clients from most to least likely to convert. This gives you a ranked list to work with regardless of threshold.</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-content">
+      <div class="step-title">Compute the profit curve</div>
+      <div class="step-desc">For each candidate cutoff k = 1 to 1000, select the top-k clients, compute TPs and FPs against known labels, and calculate Score(k) = TP×10 − FP×5 − N_features×200. Plot Score(k) vs k.</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-content">
+      <div class="step-title">Pick k* = argmax Score(k)</div>
+      <div class="step-desc">The peak of the profit curve gives you the optimal number of predictions. Often this is well below 1,000 — submitting fewer, higher-quality predictions beats submitting all 1,000.</div>
+    </div>
+  </div>
+  <div class="insight"><strong>Math check:</strong> The per-prediction break-even is p > 0.333 (derived earlier). For your test set, translate k* back to a probability threshold and apply it directly to test predictions.</div>
+
+  <hr class="divider">
+  <h2>Optuna hyperparameter search</h2>
+  <div class="card">
+    <p style="font-size:13px">Use Optuna with <code>direction='maximize'</code> and your custom scorer as the objective. Key LGBM parameters to search:</p>
+    <div class="formula">
+      num_leaves: [20, 300]<br>
+      learning_rate: [0.01, 0.3] (log-uniform)<br>
+      n_estimators: [100, 2000] + early stopping<br>
+      reg_alpha: [0.0, 2.0]  ← L1, affects feature sparsity<br>
+      min_child_samples: [10, 100]<br>
+      subsample: [0.5, 1.0]
+    </div>
+    <p style="font-size:13px">Run 100–200 trials with 5-fold CV. Total wall time with LGBM should be under 2 hours on a laptop.</p>
+  </div>
+</div>
+
+<!-- SECTION 4 -->
+<div id="s4" class="section">
+  <h2>4-week execution timeline</h2>
+  <p>Three roles, each with a clear ownership area. All three coordinate at two milestone checkpoints.</p>
+  <div style="display:flex;gap:12px;margin-bottom:1.25rem;flex-wrap:wrap">
+    <span class="badge" style="background:#E6F1FB;color:#0C447C;padding:5px 12px;font-size:12px">Student A — Data & Baseline</span>
+    <span class="badge" style="background:#EEEDFE;color:#3C3489;padding:5px 12px;font-size:12px">Student B — Feature Engineering</span>
+    <span class="badge" style="background:#E1F5EE;color:#085041;padding:5px 12px;font-size:12px">Student C — Metrics, Report & Slides</span>
+  </div>
+
+  <div class="week-header">
+    <div class="wh-cell">Week</div>
+    <div class="wh-cell">Student A</div>
+    <div class="wh-cell">Student B</div>
+    <div class="wh-cell">Student C</div>
+  </div>
+
+  <div class="week-row">
+    <div class="week-label">Week 1<br><span style="font-size:10px;color:var(--color-text-secondary)">May 10–17</span></div>
+    <div class="task-block ta">EDA: distributions, missing values, class imbalance check. Clean & impute. Stratified train/val split. Baseline LR model (all features).</div>
+    <div class="task-block tb">Literature review on cost-sensitive learning. Set up repo & shared notebook structure. Reproduce baseline with same split.</div>
+    <div class="task-block tc">Implement custom scorer + profit curve utility. Validate scorer on baseline predictions. Draft LaTeX template & bibliography.</div>
+  </div>
+
+  <div style="background:#FAEEDA;border-radius:var(--border-radius-md);padding:6px 12px;font-size:12px;color:#412402;margin:6px 0 10px">
+    <strong>Milestone 1 (May 17):</strong> Baseline score established. Custom scorer validated. Everyone on same codebase.
+  </div>
+
+  <div class="week-row">
+    <div class="week-label">Week 2<br><span style="font-size:10px;color:var(--color-text-secondary)">May 18–25</span></div>
+    <div class="task-block ta">Stage 1 feature selection: mutual info + LGBM importance. Reduce 500 → 80. Document feature removal decisions.</div>
+    <div class="task-block tb">Stage 2: L1 Logistic + LGBM regularisation. Reduce 80 → 25–30. Start RFECV on top candidates.</div>
+    <div class="task-block tc">Profit curve analysis on each feature subset. Track score vs NoVariables tradeoff. Write Section 2 of report (methodology).</div>
+  </div>
+
+  <div class="week-row">
+    <div class="week-label">Week 3<br><span style="font-size:10px;color:var(--color-text-secondary)">May 26–Jun 1</span></div>
+    <div class="task-block ta">Optuna hyperparameter search for LGBM and XGBoost on final feature set. Class imbalance strategies (scale_pos_weight, SMOTE test).</div>
+    <div class="task-block tb">Stage 3: greedy forward feature search with custom scorer. Finalise feature set. Permutation importance validation.</div>
+    <div class="task-block tc">Threshold optimisation: profit curve → optimal k*. Ensemble: probability averaging of LGBM + XGBoost. Generate test predictions.</div>
+  </div>
+
+  <div style="background:#FAEEDA;border-radius:var(--border-radius-md);padding:6px 12px;font-size:12px;color:#412402;margin:6px 0 10px">
+    <strong>Milestone 2 (Jun 1):</strong> Final model locked. Test predictions generated. All analysis complete. Enter report sprint.
+  </div>
+
+  <div class="week-row">
+    <div class="week-label">Week 4<br><span style="font-size:10px;color:var(--color-text-secondary)">Jun 2–8</span></div>
+    <div class="task-block ta">Code cleanup, comments, README. Verify predictions file format (max 1,000 rows). Final submission package.</div>
+    <div class="task-block tb">Report Sections 3–4 (results, discussion). All figures and tables. Full LaTeX compile check.</div>
+    <div class="task-block tc">Report Sections 1–2 + conclusion. Build presentation slides. Rehearse 7-min talk. Coordinate submission.</div>
+  </div>
+
+  <hr class="divider">
+  <h2>Shared responsibilities (all three)</h2>
+  <div class="grid3">
+    <div class="metric-card">
+      <div class="metric-label">Code reviews</div>
+      <div style="font-size:13px;margin-top:4px">PR review before merging any feature selection or model changes</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Version control</div>
+      <div style="font-size:13px;margin-top:4px">Git with experiment tracking (mlflow or a simple CSV log of each run)</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Weekly sync</div>
+      <div style="font-size:13px;margin-top:4px">30-min Sunday check-in to review scores and reprioritise</div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 5 -->
+<div id="s5" class="section">
+  <h2>LaTeX report — table of contents (5 pages)</h2>
+
+  <div class="toc-row">
+    <div class="toc-num">§1 — 0.5 pg</div>
+    <div>
+      <div class="toc-title">Introduction & Problem Framing</div>
+      <div class="toc-detail">State the business objective. Define the scoring function formally. Derive the break-even threshold (p > 1/3). Argue why standard metrics (AUC, F1) are insufficient — this frames all subsequent choices.</div>
+    </div>
+  </div>
+  <div class="toc-row">
+    <div class="toc-num">§2 — 1 pg</div>
+    <div>
+      <div class="toc-title">Data & Exploratory Analysis</div>
+      <div class="toc-detail">Class distribution table. Histogram of feature variance. Missing value heatmap. Note: with 500 anonymous features, EDA focuses on statistical properties, not domain interpretation. 2 figures max.</div>
+    </div>
+  </div>
+  <div class="toc-row">
+    <div class="toc-num">§3 — 1.5 pg</div>
+    <div>
+      <div class="toc-title">Feature Selection Methodology</div>
+      <div class="toc-detail">Describe the 3-stage funnel (mutual info → L1 regularisation → greedy search). Include a table: Stage | Features In | Features Out | CV Score. Plot: business score vs number of features used — this is your key analytical contribution.</div>
+    </div>
+  </div>
+  <div class="toc-row">
+    <div class="toc-num">§4 — 1 pg</div>
+    <div>
+      <div class="toc-title">Modelling & Threshold Optimisation</div>
+      <div class="toc-detail">Model comparison table (Logistic, XGBoost, LGBM, Ensemble) with CV business scores. Profit curve plot (score vs k predictions). Report final threshold k* and the predicted vs expected TP/FP split. Optuna convergence plot optional.</div>
+    </div>
+  </div>
+  <div class="toc-row">
+    <div class="toc-num">§5 — 0.75 pg</div>
+    <div>
+      <div class="toc-title">Results, Discussion & Limitations</div>
+      <div class="toc-detail">Final CV score and expected test score estimate. Sensitivity analysis: what if conversion rate in test differs by ±2%? Limitations: anonymous features limit interpretability. What would you do with more time/data?</div>
+    </div>
+  </div>
+  <div class="toc-row" style="border-bottom:none">
+    <div class="toc-num">§6 — 0.25 pg</div>
+    <div>
+      <div class="toc-title">Conclusion</div>
+      <div class="toc-detail">One-paragraph summary of decisions made and trade-offs accepted. Restate the final model, feature count, and expected score.</div>
+    </div>
+  </div>
+
+  <div class="insight" style="margin-top:1rem"><strong>Required figures for full marks:</strong> (1) Score vs NoFeatures plot, (2) Profit curve, (3) Feature selection funnel table, (4) Model comparison table with business score, (5) Class distribution.</div>
+
+  <hr class="divider">
+  <h2>Presentation — slide-by-slide (7 min)</h2>
+
+  <div class="slide-row">
+    <div class="slide-num">S1</div>
+    <div class="slide-content">
+      <div class="slide-title">The Problem & The Score (60 sec)</div>
+      <div class="slide-desc">State: "We cannot optimise for AUC. Here's why." Display the scoring formula. Show the break-even insight (p > 1/3, 20 TPs per feature). Frame the entire project around this in 30 seconds.</div>
+    </div>
+  </div>
+  <div class="slide-row">
+    <div class="slide-num">S2</div>
+    <div class="slide-content">
+      <div class="slide-title">Data Overview (45 sec)</div>
+      <div class="slide-desc">Class imbalance bar chart. Key stats: 5,000 train, 500 features, conversion rate X%. One sentence on anonymity and what that means for feature interpretation.</div>
+    </div>
+  </div>
+  <div class="slide-row">
+    <div class="slide-num">S3</div>
+    <div class="slide-content">
+      <div class="slide-title">Feature Selection Strategy (90 sec)</div>
+      <div class="slide-desc">The funnel: 500 → 80 → 30 → final N. The "Score vs Feature Count" plot is the centrepiece — show the curve, show where you stopped and why. This is your biggest methodological contribution.</div>
+    </div>
+  </div>
+  <div class="slide-row">
+    <div class="slide-num">S4</div>
+    <div class="slide-content">
+      <div class="slide-title">Models Compared (60 sec)</div>
+      <div class="slide-desc">Simple table: Model | CV Business Score | Features Used. Show LR as baseline. LGBM and XGBoost as main candidates. Ensemble as final. Emphasise that the score — not AUC — is the only column that matters.</div>
+    </div>
+  </div>
+  <div class="slide-row">
+    <div class="slide-num">S5</div>
+    <div class="slide-content">
+      <div class="slide-title">Threshold & Profit Curve (60 sec)</div>
+      <div class="slide-desc">Show the profit curve plot (score vs k). Highlight k* — "we predict X clients, not 1,000." Explain that submitting fewer, higher-confidence predictions was a deliberate choice driven by the scoring function.</div>
+    </div>
+  </div>
+  <div class="slide-row">
+    <div class="slide-num">S6</div>
+    <div class="slide-content">
+      <div class="slide-title">Final Results & Key Numbers (45 sec)</div>
+      <div class="slide-desc">Final CV score, expected TP/FP split, features used. One sentence on the ensemble approach. Sensitivity: "If conversion rate shifts ±2%, our score changes by approximately X."</div>
+    </div>
+  </div>
+  <div class="slide-row">
+    <div class="slide-num">S7</div>
+    <div class="slide-content">
+      <div class="slide-title">Conclusions & What We'd Do Next (45 sec)</div>
+      <div class="slide-desc">Three bullet points: (1) biggest lesson learned about the scoring function, (2) what feature selection technique worked best, (3) one thing you'd try with more time (e.g., neural feature selection, Bayesian optimisation).</div>
+    </div>
+  </div>
+
+  <div class="insight" style="margin-top:0.5rem"><strong>Narrative thread:</strong> Every slide should answer "why does this help our score?" The presentation should feel like one coherent argument, not five separate analyses.</div>
+</div>
+
+</div>
+
+<script>
+function show(id,btn){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+</script>
