@@ -3,7 +3,8 @@ from pathlib import Path
 
 def test_package_imports() -> None:
     """Smoke test: package can be imported."""
-    import cost_effective  # noqa: F401
+    import cost_effective
+    import cost_effective.models  # noqa: F401
 
 
 def test_project_scaffold_layout() -> None:
