@@ -1,6 +1,6 @@
-# template
+# Cost effective predictive modeling
 
-Template repository for python projects
+TODO
 
 ## Quick Start
 

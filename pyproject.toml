@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "template"
+name = "cost_effective"
 version = "0.1.0"
-requires-python = ">=3.12.4,<3.12.5"
+requires-python = ">=3.12.4,<3.13"
 
 dependencies = [
     "dotenv>=0.9.9",
@@ -70,6 +70,7 @@ select = [
 ]
 ignore = [
     "S101",
+    "N803"
 ]
 fixable = ["ALL"]
 
@@ -82,6 +83,7 @@ max-complexity = 12
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+preview = true
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
