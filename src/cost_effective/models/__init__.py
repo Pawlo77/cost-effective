@@ -1,10 +1,12 @@
 """Modeling helpers for cost-effective predictive modeling."""
 
-from .modeling import (
+from .dataclasses import (
     FeatureSetEvaluation,
     FinalPredictionResult,
     ModelComparisonResult,
     ProfitCurveResult,
+)
+from .modeling import (
     build_model_factories,
     build_profit_curve,
     build_top_k_feature_sets,

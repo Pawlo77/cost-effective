@@ -1,88 +1,37 @@
 """Modeling helpers for feature-set comparison and threshold tuning."""
 
-from dataclasses import dataclass
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 import pandas as pd
+import xgboost as xgb
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import StratifiedKFold, cross_val_predict, cross_val_score
+from sklearn.model_selection import StratifiedKFold, cross_val_predict, cross_validate
 from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import RobustScaler
 
-from ..dataset.utils import custom_scorer, get_classifier
-
+from ..dataset.utils import (
+    business_scorer_no_var_penalty,
+    custom_scorer,
+    f1_scorer_wrapper,
+    get_classifier,
+)
+from .dataclasses import (
+    FeatureSetEvaluation,
+    FinalPredictionResult,
+    ModelComparisonResult,
+    ProfitCurveResult,
+)
 
 EstimatorFactory = Callable[[np.ndarray], Any]
-
-
-@dataclass(frozen=True, slots=True)
-class FeatureSetEvaluation:
-    """Cross-validated score for a single feature subset."""
-
-    feature_set_name: str
-    feature_count: int
-    cv_score_mean: float
-    cv_score_std: float
-    features: tuple[str, ...]
-
-    def to_dict(self) -> dict[str, Any]:
-        """Return a JSON-friendly representation."""
-        return {
-            "feature_set_name": self.feature_set_name,
-            "feature_count": self.feature_count,
-            "cv_score_mean": self.cv_score_mean,
-            "cv_score_std": self.cv_score_std,
-            "features": list(self.features),
-        }
-
-
-@dataclass(frozen=True, slots=True)
-class ModelComparisonResult:
-    """Cross-validated performance for a model/feature-set pair."""
-
-    model_name: str
-    feature_set_name: str
-    feature_count: int
-    cv_score_mean: float
-    cv_score_std: float
-
-    def to_dict(self) -> dict[str, Any]:
-        """Return a JSON-friendly representation."""
-        return {
-            "model_name": self.model_name,
-            "feature_set_name": self.feature_set_name,
-            "feature_count": self.feature_count,
-            "cv_score_mean": self.cv_score_mean,
-            "cv_score_std": self.cv_score_std,
-        }
-
-
-@dataclass(frozen=True, slots=True)
-class ProfitCurveResult:
-    """Business-score curve built from out-of-fold probabilities."""
-
-    curve: pd.DataFrame
-    best_k: int
-    best_threshold: float
-    best_score: float
-
-
-@dataclass(frozen=True, slots=True)
-class FinalPredictionResult:
-    """Final model and ranked test predictions."""
-
-    model_name: str
-    selected_features: tuple[str, ...]
-    probabilities: np.ndarray
-    ranked_test_indices: np.ndarray
-    threshold: float
 
 
 def rank_features(feature_names: list[str], rankings: np.ndarray) -> pd.DataFrame:
     """Return features ordered by RFECV rank, then name as a stable tiebreaker."""
     ranked = pd.DataFrame({"feature": feature_names, "ranking": np.asarray(rankings, dtype=int)})
-    ranked = ranked.sort_values(["ranking", "feature"], ascending=[True, True]).reset_index(drop=True)
+    ranked = ranked.sort_values(["ranking", "feature"], ascending=[True, True])
+    ranked = ranked.reset_index(drop=True)
     ranked["order"] = np.arange(1, len(ranked) + 1)
     return ranked
 
@@ -121,26 +70,40 @@ def evaluate_feature_sets(
         if not features:
             continue
 
-        scores = cross_val_score(
+        cv_results = cross_validate(
             factory(y.to_numpy()),
             X[features],
             y,
             cv=cv,
-            scoring=custom_scorer,
+            scoring={
+                "business": custom_scorer,
+                "f1": f1_scorer_wrapper,
+                "business_no_var": business_scorer_no_var_penalty,
+            },
+            n_jobs=-1,
         )
+
+        cv_scores = cv_results["test_business"]
+        f1_scores = cv_results["test_f1"]
+        business_no_var_scores = cv_results["test_business_no_var"]
+
         evaluations.append(
             FeatureSetEvaluation(
                 feature_set_name=feature_set_name,
                 feature_count=len(features),
-                cv_score_mean=float(scores.mean()),
-                cv_score_std=float(scores.std(ddof=0)),
+                cv_score_mean=float(cv_scores.mean()),
+                cv_score_std=float(cv_scores.std(ddof=0)),
+                f1_score=float(f1_scores.mean()),
+                business_score_no_var_penalty=float(business_no_var_scores.mean()),
                 features=tuple(features),
             )
         )
 
-    return pd.DataFrame([evaluation.to_dict() for evaluation in evaluations]).sort_values(
-        ["cv_score_mean", "feature_count"], ascending=[False, True]
-    ).reset_index(drop=True)
+    return (
+        pd.DataFrame([evaluation.to_dict() for evaluation in evaluations])
+        .sort_values(["cv_score_mean", "feature_count"], ascending=[False, True])
+        .reset_index(drop=True)
+    )
 
 
 def build_model_factories(y: pd.Series) -> dict[str, EstimatorFactory]:
@@ -153,42 +116,35 @@ def build_model_factories(y: pd.Series) -> dict[str, EstimatorFactory]:
 
     def _logistic_factory(_: np.ndarray | None = None) -> Any:
         return make_pipeline(
-            StandardScaler(),
+            RobustScaler(),
             LogisticRegression(
                 max_iter=2000,
-                solver="liblinear",
+                solver="saga",
+                penalty="elasticnet",
+                l1_ratio=0.5,
                 class_weight="balanced",
                 random_state=42,
             ),
         )
 
-    factories: dict[str, EstimatorFactory] = {
+    def _xgboost_factory(_: np.ndarray | None = None) -> Any:
+        return xgb.XGBClassifier(
+            n_estimators=200,
+            learning_rate=0.05,
+            max_depth=4,
+            subsample=0.9,
+            colsample_bytree=0.9,
+            reg_lambda=1.0,
+            random_state=42,
+            eval_metric="logloss",
+            tree_method="hist",
+        )
+
+    return {
         "lightgbm": _lightgbm_factory,
         "logistic_regression": _logistic_factory,
+        "xgboost": _xgboost_factory,
     }
-
-    try:
-        import xgboost as xgb  # type: ignore[import-not-found]
-    except ImportError:
-        pass
-    else:
-
-        def _xgboost_factory(_: np.ndarray | None = None) -> Any:
-            return xgb.XGBClassifier(
-                n_estimators=200,
-                learning_rate=0.05,
-                max_depth=4,
-                subsample=0.9,
-                colsample_bytree=0.9,
-                reg_lambda=1.0,
-                random_state=42,
-                eval_metric="logloss",
-                tree_method="hist",
-            )
-
-        factories["xgboost"] = _xgboost_factory
-
-    return factories
 
 
 def compare_models_on_feature_sets(
@@ -197,36 +153,99 @@ def compare_models_on_feature_sets(
     feature_sets: dict[str, list[str]],
     estimator_factories: dict[str, EstimatorFactory] | None = None,
     cv: int = 5,
+    threshold: float | None = None,
 ) -> pd.DataFrame:
-    """Evaluate multiple model families on the same ranked feature subsets."""
+    """Evaluate multiple model families on the same ranked feature subsets.
+
+    Args:
+        X: Feature matrix.
+        y: Target vector.
+        feature_sets: Dict mapping feature set names to feature lists.
+        estimator_factories: Dict mapping model names to factory functions.
+        cv: Number of cross-validation folds.
+        threshold: Optional probability threshold for binary predictions.
+                  If provided, predictions are thresholded before computing metrics.
+    """
     factories = estimator_factories or build_model_factories(y)
     comparisons: list[ModelComparisonResult] = []
+
+    # Create threshold-aware scorers if threshold is provided
+    if threshold is not None:
+
+        def thresholded_business_scorer(estimator, X_val: np.ndarray, y_true: np.ndarray) -> float:
+            """Business scorer with threshold applied."""
+            y_pred_proba = estimator.predict_proba(X_val)[:, 1]
+            y_pred = (y_pred_proba > threshold).astype(int)
+            tp = ((y_pred == 1) & (y_true == 1)).sum()
+            fp = ((y_pred == 1) & (y_true == 0)).sum()
+            n_features = X_val.shape[1]
+            return (tp * 10) - (fp * 5) - (n_features * 200)
+
+        def thresholded_business_scorer_no_var(
+            estimator, X_val: np.ndarray, y_true: np.ndarray
+        ) -> float:
+            """Business scorer without var penalty, with threshold applied."""
+            y_pred_proba = estimator.predict_proba(X_val)[:, 1]
+            y_pred = (y_pred_proba > threshold).astype(int)
+            tp = ((y_pred == 1) & (y_true == 1)).sum()
+            fp = ((y_pred == 1) & (y_true == 0)).sum()
+            return (tp * 10) - (fp * 5)
+
+        def thresholded_f1_scorer(estimator, X_val: np.ndarray, y_true: np.ndarray) -> float:
+            """F1 scorer with threshold applied."""
+            from sklearn.metrics import f1_score
+
+            y_pred_proba = estimator.predict_proba(X_val)[:, 1]
+            y_pred = (y_pred_proba > threshold).astype(int)
+            return f1_score(y_true, y_pred, zero_division=0)
+
+        scorers = {
+            "business": thresholded_business_scorer,
+            "f1": thresholded_f1_scorer,
+            "business_no_var": thresholded_business_scorer_no_var,
+        }
+    else:
+        scorers = {
+            "business": custom_scorer,
+            "f1": f1_scorer_wrapper,
+            "business_no_var": business_scorer_no_var_penalty,
+        }
 
     for model_name, factory in factories.items():
         for feature_set_name, features in feature_sets.items():
             if not features:
                 continue
 
-            scores = cross_val_score(
+            cv_results = cross_validate(
                 factory(y.to_numpy()),
                 X[features],
                 y,
                 cv=cv,
-                scoring=custom_scorer,
+                scoring=scorers,
+                n_jobs=-1,
             )
+
+            cv_scores = cv_results["test_business"]
+            f1_scores = cv_results["test_f1"]
+            business_no_var_scores = cv_results["test_business_no_var"]
+
             comparisons.append(
                 ModelComparisonResult(
                     model_name=model_name,
                     feature_set_name=feature_set_name,
                     feature_count=len(features),
-                    cv_score_mean=float(scores.mean()),
-                    cv_score_std=float(scores.std(ddof=0)),
+                    cv_score_mean=float(cv_scores.mean()),
+                    cv_score_std=float(cv_scores.std(ddof=0)),
+                    f1_score=float(f1_scores.mean()),
+                    business_score_no_var_penalty=float(business_no_var_scores.mean()),
                 )
             )
 
-    return pd.DataFrame([comparison.to_dict() for comparison in comparisons]).sort_values(
-        ["cv_score_mean", "feature_count"], ascending=[False, True]
-    ).reset_index(drop=True)
+    return (
+        pd.DataFrame([comparison.to_dict() for comparison in comparisons])
+        .sort_values(["cv_score_mean", "feature_count"], ascending=[False, True])
+        .reset_index(drop=True)
+    )
 
 
 def compute_oof_probabilities(
@@ -239,7 +258,7 @@ def compute_oof_probabilities(
     factory = estimator_factory or get_classifier
     estimator = factory(y.to_numpy())
     splitter = StratifiedKFold(n_splits=cv, shuffle=True, random_state=42)
-    probabilities = cross_val_predict(
+    return cross_val_predict(
         estimator,
         X,
         y,
@@ -247,7 +266,6 @@ def compute_oof_probabilities(
         method="predict_proba",
         n_jobs=-1,
     )[:, 1]
-    return probabilities
 
 
 def build_profit_curve(
@@ -267,15 +285,13 @@ def build_profit_curve(
     cumulative_fp = np.cumsum(ranked_targets[:limit] == 0)
     scores = (cumulative_tp * 10) - (cumulative_fp * 5) - (feature_count * 200)
 
-    curve = pd.DataFrame(
-        {
-            "k": np.arange(1, limit + 1),
-            "tp": cumulative_tp,
-            "fp": cumulative_fp,
-            "score": scores,
-            "threshold": ranked_probabilities[:limit],
-        }
-    )
+    curve = pd.DataFrame({
+        "k": np.arange(1, limit + 1),
+        "tp": cumulative_tp,
+        "fp": cumulative_fp,
+        "score": scores,
+        "threshold": ranked_probabilities[:limit],
+    })
 
     best_idx = int(curve["score"].idxmax())
     best_row = curve.iloc[best_idx]
