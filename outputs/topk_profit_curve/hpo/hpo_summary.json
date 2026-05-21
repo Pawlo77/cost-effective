@@ -1,0 +1,9 @@
+{
+  "logistic_regression": {
+    "best_params": {
+      "logisticregression__C": 0.001,
+      "logisticregression__penalty": "l2"
+    },
+    "cv_business_mean": 2306.0
+  }
+}

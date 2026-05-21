@@ -2,17 +2,25 @@
 
 Lightweight research code for cost-aware predictive modeling, feature selection, and hyperparameter tuning with custom business metrics.
 
-## Notebook pipeline (run in order)
+## Notebook pipeline
 
 All experiments are orchestrated from `notebooks/` — there are no `scripts/` runners.
 
-| Step | Notebook | Purpose |
-|------|----------|---------|
-| 1 | `notebooks/feature_selection.ipynb` | Stages 1–3: filter 500→~26 features, CV drop-column ranking, top-k CV scores |
-| 2 | `notebooks/baseline.ipynb` | Optional reference baseline on full scaled feature space |
-| 3 | `notebooks/modeling.ipynb` | Model comparison, HPO on winner, OOF profit curve, test export, submission files |
+| Step | Notebook | Purpose | Outputs |
+|------|----------|---------|---------|
+| 1 | `notebooks/feature_selection.ipynb` | Stages 1–3: filter 500→~26 features, CV drop-column ranking, top-k CV scores | `outputs/` (shared) |
+| 2 | `notebooks/baseline.ipynb` | Optional reference baseline on full scaled feature space | `outputs/baseline_results.json`, `outputs/optimal_threshold.json` |
+| 3a | `notebooks/modeling_topk_profit_curve.ipynb` | Legacy: model comparison, HPO, **max top-k profit curve** on OOF, test export | `outputs/topk_profit_curve/` |
+| 3b | `notebooks/modeling_ev_profit_targeting.ipynb` | **Recommended:** EV break-even, calibration, elbow + nested-CV k, combined selective k | `outputs/ev_profit_targeting/` |
 
-Re-run notebooks top-to-bottom after code changes so outputs under `outputs/` stay in sync.
+Re-run notebooks after code changes so artifacts stay in sync.
+
+### Which modeling notebook?
+
+- **`modeling_topk_profit_curve`** — picks k ≈ 1000 when the OOF profit curve is flat near the cap (weak ranking → mails almost everyone allowed).
+- **`modeling_ev_profit_targeting`** — uses expected value per contact (15p−5), isotonic calibration on OOF, and `min(k_ev, k_elbow, k_nested_cv)` so k is usually **much smaller** when the model is unselective.
+
+Both read Stage 3 outputs from `outputs/` and write **only** into their own subdirectory.
 
 ## Quick Start
 
@@ -21,19 +29,44 @@ make install
 make test
 ```
 
-Open Jupyter and execute the three notebooks in the order above.
+```text
+feature_selection.ipynb  →  modeling_ev_profit_targeting.ipynb   # preferred
+                         →  modeling_topk_profit_curve.ipynb    # comparison / legacy
+```
 
-## Outputs
+## Output layout
 
-- `outputs/feature_selection_results.csv` — ranked Stage 2 features
-- `outputs/stage3_feature_set_scores.csv` — top-k subset CV business scores
-- `outputs/model_comparison_base.csv`, `outputs/model_comparison.csv`
-- `outputs/model_predictions.csv`, `outputs/modeling_summary.json`
-- `outputs/{STUDENT_PREFIX}_obs.txt`, `outputs/{STUDENT_PREFIX}_vars.txt` (set prefix in modeling notebook)
+**Shared (feature selection):**
+
+- `outputs/feature_selection_results.csv`
+- `outputs/stage3_feature_set_scores.csv`
+
+**`outputs/topk_profit_curve/`** (notebook 3a):
+
+- `model_comparison_base.csv`, `model_comparison.csv`
+- `hpo/hpo_summary.json`
+- `model_predictions.csv`, `modeling_summary.json`
+- `{STUDENT_PREFIX}_obs.txt`, `{STUDENT_PREFIX}_vars.txt`
+
+**`outputs/ev_profit_targeting/`** (notebook 3b):
+
+- Same filenames as above, independent copies for this approach
+
+Set `SUBMISSION_PREFIX` in each modeling notebook before export.
 
 ## Library code
 
-Shared logic lives in `src/cost_effective/` (scorers, loaders, modeling helpers). Notebooks import these modules; they are not meant to be run as CLI scripts.
+Shared logic lives in `src/cost_effective/`:
+
+- `models/modeling.py` — CV comparison, OOF probabilities, profit curve, final predict
+- `models/profit_targeting.py` — EV k selection, calibration, test export helpers (`TargetingConfig`, `choose_targeting_k`, …)
+- `paths.py` — `APPROACH_TOPK_PROFIT_CURVE`, `APPROACH_EV_PROFIT_TARGETING`, `approach_outputs_dir()`
+- `utils.py` — param grids, HPO, submission I/O, feature name parsing
+- `notebook_setup.py` — `setup_modeling_notebook()` (style + paths + data in one call)
+- `notebook_workflows.py` — compare/tune/OOF/export steps used by both notebooks
+- `plots.py` — profit-curve and EV dashboard figures
+
+Notebooks import these modules; they are not CLI scripts.
 
 ## Contributing
 

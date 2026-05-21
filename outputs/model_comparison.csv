@@ -1,9 +1,0 @@
-model_name,feature_set_name,feature_count,cv_score_mean,cv_score_std,f1_score,roc_auc_score,business_score_no_var_penalty,best_hyperparams
-logistic_regression,top_01,1,2306.0,20.346989949375804,0.6683026776381772,0.5551373495424171,2506.0,"{""logisticregression__C"": 0.001, ""logisticregression__penalty"": ""l2""}"
-logistic_regression,top_03,3,1908.0,25.612496949731394,0.6684905984456352,0.5741769534276523,2508.0,"{""logisticregression__C"": 0.001, ""logisticregression__penalty"": ""l2""}"
-logistic_regression,top_05,5,1511.0,24.779023386727733,0.6687634659449666,0.5875564922087623,2511.0,"{""logisticregression__C"": 0.001, ""logisticregression__penalty"": ""l2""}"
-logistic_regression,top_08,8,907.0,28.74021572639983,0.6684119092911189,0.5910093840323483,2507.0,"{""logisticregression__C"": 0.001, ""logisticregression__penalty"": ""l2""}"
-logistic_regression,top_10,10,512.0,38.80721582386451,0.6689047709716728,0.6020136030453985,2512.0,"{""logisticregression__C"": 0.001, ""logisticregression__penalty"": ""l2""}"
-logistic_regression,top_15,15,-485.0,27.748873851023216,0.6691601940773506,0.6043544637480067,2515.0,"{""logisticregression__C"": 0.001, ""logisticregression__penalty"": ""l2""}"
-logistic_regression,top_20,20,-1484.0,34.84250278036869,0.669243194861363,0.6045944525792877,2516.0,"{""logisticregression__C"": 0.001, ""logisticregression__penalty"": ""l2""}"
-logistic_regression,top_26,26,-2669.0,13.564659966250536,0.6706006133060756,0.6091769690851064,2531.0,"{""logisticregression__C"": 0.001, ""logisticregression__penalty"": ""l2""}"

@@ -306,7 +306,6 @@ def compare_models_on_feature_sets(
 
 def attach_best_hyperparams(
     comparison: pd.DataFrame,
-    *,
     model_name: str,
     best_params: dict[str, Any],
 ) -> pd.DataFrame:
@@ -497,7 +496,6 @@ def run_hyperparameter_search(
     estimator: Any,
     X: pd.DataFrame,
     y: pd.Series,
-    *,
     param_grid: dict[str, list] | None = None,
     param_dist: dict[str, list] | None = None,
     n_iter: int = 20,

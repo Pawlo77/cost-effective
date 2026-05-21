@@ -1,0 +1,29 @@
+{
+  "approach": "ev_profit_targeting",
+  "best_model": "logistic_regression",
+  "best_feature_set": "top_01",
+  "features": [
+    "var_389"
+  ],
+  "cv_business_mean": 2306.0,
+  "hpo_cv_business_mean": 2306.0,
+  "targeting_strategy": "combined",
+  "oof_selected_k": 939,
+  "k_ev_threshold": 1000,
+  "k_elbow": 939,
+  "k_nested_cv": 1000,
+  "k_profit_curve_max": 999,
+  "oof_business_score": 3145.0,
+  "oof_tp": 536,
+  "oof_fp": 403,
+  "oof_n_above_break_even": 4860,
+  "test_exported_k": 939,
+  "test_diagnostics": {
+    "requested_k": 939.0,
+    "exported_k": 939.0,
+    "n_test_above_break_even": 4989.0,
+    "min_prob_in_export": 0.5226824497237276,
+    "max_prob_in_export": 0.7354275870713015
+  },
+  "calibrated": true
+}

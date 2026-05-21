@@ -1,4 +1,5 @@
 {
+  "approach": "topk_profit_curve",
   "best_model": "logistic_regression",
   "best_feature_set": "top_01",
   "features": [

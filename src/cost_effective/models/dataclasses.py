@@ -92,3 +92,22 @@ class FinalPredictionResult:
     probabilities: np.ndarray
     ranked_test_indices: np.ndarray
     threshold: float
+
+
+@dataclass(frozen=True, slots=True)
+class TargetingSelectionResult:
+    """Contact-count selection from OOF probabilities."""
+
+    selected_k: int
+    strategy: str
+    break_even_probability: float
+    k_ev_threshold: int
+    k_elbow: int
+    k_nested_cv: int
+    k_profit_curve_max: int
+    oof_business_score: float
+    oof_tp: int
+    oof_fp: int
+    min_probability_in_selection: float
+    n_above_break_even: int
+    calibrated: bool

@@ -6,6 +6,7 @@ from .dataclasses import (
     FinalPredictionResult,
     ModelComparisonResult,
     ProfitCurveResult,
+    TargetingSelectionResult,
 )
 from .modeling import (
     attach_best_hyperparams,
@@ -22,6 +23,17 @@ from .modeling import (
     rank_features_drop_column_cv,
     run_hyperparameter_search,
 )
+from .profit_targeting import (
+    TargetingConfig,
+    business_score_at_k,
+    calibrate_probabilities,
+    choose_targeting_k,
+    expected_value_per_contact,
+    rank_test_indices,
+    select_k_elbow,
+    select_k_ev_threshold,
+    select_k_nested_cv,
+)
 
 __all__ = [
     "F1CurveResult",
@@ -29,17 +41,27 @@ __all__ = [
     "FinalPredictionResult",
     "ModelComparisonResult",
     "ProfitCurveResult",
+    "TargetingConfig",
+    "TargetingSelectionResult",
     "attach_best_hyperparams",
     "build_f1_curve",
     "build_model_factories",
     "build_profit_curve",
     "build_top_k_feature_sets",
+    "business_score_at_k",
+    "calibrate_probabilities",
+    "choose_targeting_k",
     "compare_models_on_feature_sets",
     "compute_oof_probabilities",
     "evaluate_feature_sets",
+    "expected_value_per_contact",
     "fit_final_model_and_predict",
     "make_tuned_factory",
     "rank_features",
     "rank_features_drop_column_cv",
+    "rank_test_indices",
     "run_hyperparameter_search",
+    "select_k_elbow",
+    "select_k_ev_threshold",
+    "select_k_nested_cv",
 ]

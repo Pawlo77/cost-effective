@@ -1,0 +1,2 @@
+model_name,feature_set_name,feature_count,cv_score_mean,cv_score_std,f1_score,roc_auc_score,business_score_no_var_penalty,best_hyperparams
+logistic_regression,top_01,1,2306.0,20.346989949375804,0.6683026776381772,0.5551373495424171,2506.0,"{""logisticregression__C"": 0.001, ""logisticregression__penalty"": ""l2""}"
