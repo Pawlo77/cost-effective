@@ -1,18 +1,28 @@
 """Modeling helpers for feature-set comparison and threshold tuning."""
 
+import json
 from collections.abc import Callable
 from typing import Any
 
 import numpy as np
 import pandas as pd
 import xgboost as xgb
+from sklearn.base import clone
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, roc_auc_score
-from sklearn.model_selection import StratifiedKFold, cross_val_predict, cross_validate
+from sklearn.model_selection import (
+    GridSearchCV,
+    RandomizedSearchCV,
+    StratifiedKFold,
+    cross_val_predict,
+    cross_validate,
+)
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import RobustScaler
 
 from ..dataset.utils import (
+    DEFAULT_MAX_TARGETS,
+    best_k_break_even,
     business_scorer_no_var_penalty,
     custom_scorer,
     f1_scorer_wrapper,
@@ -29,8 +39,57 @@ from .dataclasses import (
 EstimatorFactory = Callable[[np.ndarray], Any]
 
 
+def rank_features_drop_column_cv(
+    X: pd.DataFrame,
+    y: pd.Series,
+    estimator_factory: EstimatorFactory | None = None,
+    cv: int = 5,
+) -> pd.DataFrame:
+    """Rank features by CV business impact when each column is removed.
+
+    Lower ``delta`` (score drop when removed) means higher importance.
+    """
+    factory = estimator_factory or get_classifier
+    y_array = y.to_numpy()
+    cv_scoring = {"business": custom_scorer}
+    baseline = float(
+        cross_validate(
+            factory(y_array),
+            X,
+            y,
+            cv=cv,
+            scoring=cv_scoring,
+            n_jobs=-1,
+        )["test_business"].mean()
+    )
+
+    rows: list[dict[str, float | str]] = []
+    for feature in X.columns:
+        remaining = [col for col in X.columns if col != feature]
+        score_without = float(
+            cross_validate(
+                factory(y_array),
+                X[remaining],
+                y,
+                cv=cv,
+                scoring=cv_scoring,
+                n_jobs=-1,
+            )["test_business"].mean()
+        )
+        rows.append({
+            "feature": feature,
+            "cv_score_if_dropped": score_without,
+            "delta": score_without - baseline,
+        })
+
+    ranked = pd.DataFrame(rows).sort_values(["delta", "feature"], ascending=[True, True])
+    ranked = ranked.reset_index(drop=True)
+    ranked["order"] = np.arange(1, len(ranked) + 1)
+    return ranked
+
+
 def rank_features(feature_names: list[str], rankings: np.ndarray) -> pd.DataFrame:
-    """Return features ordered by RFECV rank, then name as a stable tiebreaker."""
+    """Return features ordered by rank array (1 = best), then name as tiebreaker."""
     ranked = pd.DataFrame({"feature": feature_names, "ranking": np.asarray(rankings, dtype=int)})
     ranked = ranked.sort_values(["ranking", "feature"], ascending=[True, True])
     ranked = ranked.reset_index(drop=True)
@@ -170,64 +229,30 @@ def compare_models_on_feature_sets(
     feature_sets: dict[str, list[str]],
     estimator_factories: dict[str, EstimatorFactory] | None = None,
     cv: int = 5,
-    threshold: float | None = None,
+    max_targets: int = DEFAULT_MAX_TARGETS,
 ) -> pd.DataFrame:
     """Evaluate multiple model families on the same ranked feature subsets.
 
-    Args:
-        X: Feature matrix.
-        y: Target vector.
-        feature_sets: Dict mapping feature set names to feature lists.
-        estimator_factories: Dict mapping model names to factory functions.
-        cv: Number of cross-validation folds.
-        threshold: Optional probability threshold for binary predictions.
-                  If provided, predictions are thresholded before computing metrics.
+    All business metrics use top-k ranking capped at ``max_targets``.
     """
     factories = estimator_factories or build_model_factories(y)
     comparisons: list[ModelComparisonResult] = []
 
-    # Create threshold-aware scorers if threshold is provided
-    if threshold is not None:
+    def _business_scorer(estimator, X_val: np.ndarray, y_true: np.ndarray) -> float:
+        return custom_scorer(estimator, X_val, y_true, max_k=max_targets)
 
-        def thresholded_business_scorer(estimator, X_val: np.ndarray, y_true: np.ndarray) -> float:
-            """Business scorer with threshold applied."""
-            y_pred_proba = estimator.predict_proba(X_val)[:, 1]
-            y_pred = (y_pred_proba > threshold).astype(int)
-            tp = ((y_pred == 1) & (y_true == 1)).sum()
-            fp = ((y_pred == 1) & (y_true == 0)).sum()
-            n_features = X_val.shape[1]
-            return (tp * 10) - (fp * 5) - (n_features * 200)
+    def _business_no_var_scorer(estimator, X_val: np.ndarray, y_true: np.ndarray) -> float:
+        return business_scorer_no_var_penalty(estimator, X_val, y_true, max_k=max_targets)
 
-        def thresholded_business_scorer_no_var(
-            estimator, X_val: np.ndarray, y_true: np.ndarray
-        ) -> float:
-            """Business scorer without var penalty, with threshold applied."""
-            y_pred_proba = estimator.predict_proba(X_val)[:, 1]
-            y_pred = (y_pred_proba > threshold).astype(int)
-            tp = ((y_pred == 1) & (y_true == 1)).sum()
-            fp = ((y_pred == 1) & (y_true == 0)).sum()
-            return (tp * 10) - (fp * 5)
+    def _f1_scorer(estimator, X_val: np.ndarray, y_true: np.ndarray) -> float:
+        return f1_scorer_wrapper(estimator, X_val, y_true, max_k=max_targets)
 
-        def thresholded_f1_scorer(estimator, X_val: np.ndarray, y_true: np.ndarray) -> float:
-            """F1 scorer with threshold applied."""
-            from sklearn.metrics import f1_score
-
-            y_pred_proba = estimator.predict_proba(X_val)[:, 1]
-            y_pred = (y_pred_proba > threshold).astype(int)
-            return f1_score(y_true, y_pred, zero_division=0)
-
-        scorers = {
-            "business": thresholded_business_scorer,
-            "f1": thresholded_f1_scorer,
-            "business_no_var": thresholded_business_scorer_no_var,
-        }
-    else:
-        scorers = {
-            "business": custom_scorer,
-            "f1": f1_scorer_wrapper,
-            "roc_auc": "roc_auc",
-            "business_no_var": business_scorer_no_var_penalty,
-        }
+    scorers = {
+        "business": _business_scorer,
+        "f1": _f1_scorer,
+        "roc_auc": "roc_auc",
+        "business_no_var": _business_no_var_scorer,
+    }
 
     for model_name, factory in factories.items():
         for feature_set_name, features in feature_sets.items():
@@ -279,6 +304,27 @@ def compare_models_on_feature_sets(
     )
 
 
+def attach_best_hyperparams(
+    comparison: pd.DataFrame,
+    *,
+    model_name: str,
+    best_params: dict[str, Any],
+) -> pd.DataFrame:
+    """Add a CSV-safe ``best_hyperparams`` column from HPO results.
+
+    Assigning a dict directly (``df["col"] = params``) makes pandas align on
+    index keys and yields NaN for every row.
+    """
+    out = comparison.copy()
+    serialized = json.dumps(best_params, sort_keys=True)
+    out["best_hyperparams"] = np.where(
+        out["model_name"] == model_name,
+        serialized,
+        "",
+    )
+    return out
+
+
 def compute_oof_probabilities(
     X: pd.DataFrame,
     y: pd.Series,
@@ -326,18 +372,22 @@ def build_profit_curve(
 
     best_idx = int(curve["score"].idxmax())
     best_row = curve.iloc[best_idx]
+    profit_k = int(best_row["k"])
+    breakeven_k = best_k_break_even(probabilities, max_k=max_targets)
+    effective_k = min(profit_k, breakeven_k) if breakeven_k > 0 else profit_k
+    effective_row = curve.loc[curve["k"] == effective_k].iloc[0]
     return ProfitCurveResult(
         curve=curve,
-        best_k=int(best_row["k"]),
-        best_threshold=float(best_row["threshold"]),
-        best_score=float(best_row["score"]),
+        best_k=effective_k,
+        best_threshold=float(effective_row["threshold"]),
+        best_score=float(effective_row["score"]),
     )
 
 
 def build_f1_curve(
     y_true: pd.Series,
     probabilities: np.ndarray,
-    max_targets: int | None = None,
+    max_targets: int = DEFAULT_MAX_TARGETS,
 ) -> F1CurveResult:
     """Create a threshold sweep optimized for F1, with ROC AUC diagnostics."""
     y_array = y_true.to_numpy()
@@ -347,7 +397,7 @@ def build_f1_curve(
 
     total_positives = int((y_array == 1).sum())
     total_negatives = int((y_array == 0).sum())
-    limit = len(ranked_targets) if max_targets is None else min(max_targets, len(ranked_targets))
+    limit = min(max_targets, len(ranked_targets))
 
     cumulative_tp = np.cumsum(ranked_targets[:limit] == 1)
     cumulative_fp = np.cumsum(ranked_targets[:limit] == 0)
@@ -418,14 +468,20 @@ def fit_final_model_and_predict(
     X_test: pd.DataFrame,
     selected_features: list[str],
     estimator_factory: EstimatorFactory | None = None,
-    max_targets: int = 1000,
+    max_targets: int = DEFAULT_MAX_TARGETS,
+    n_targets: int | None = None,
 ) -> FinalPredictionResult:
-    """Fit the final model on the selected feature subset and rank test samples."""
+    """Fit the final model and return top test indices by probability.
+
+    ``n_targets`` overrides ``max_targets`` when set (e.g. OOF-optimal k).
+    """
     factory = estimator_factory or get_classifier
     model = factory(y_train.to_numpy())
     model.fit(X_train[selected_features], y_train)
     probabilities = model.predict_proba(X_test[selected_features])[:, 1]
-    ranked_test_indices = np.argsort(probabilities)[::-1][: min(max_targets, len(probabilities))]
+    k = n_targets if n_targets is not None else max_targets
+    k = min(k, len(probabilities))
+    ranked_test_indices = np.argsort(probabilities)[::-1][:k]
     threshold = float(probabilities[ranked_test_indices[-1]]) if len(ranked_test_indices) else 0.0
 
     return FinalPredictionResult(
@@ -435,3 +491,49 @@ def fit_final_model_and_predict(
         ranked_test_indices=ranked_test_indices,
         threshold=threshold,
     )
+
+
+def run_hyperparameter_search(
+    estimator: Any,
+    X: pd.DataFrame,
+    y: pd.Series,
+    *,
+    param_grid: dict[str, list] | None = None,
+    param_dist: dict[str, list] | None = None,
+    n_iter: int = 20,
+    cv: int = 5,
+) -> tuple[Any, dict[str, Any], float]:
+    """Tune hyperparameters on the exact feature matrix used at inference."""
+    if (param_grid is None) == (param_dist is None):
+        raise ValueError("Provide exactly one of param_grid or param_dist")
+
+    search_kw = {
+        "scoring": {
+            "business": custom_scorer,
+            "f1": f1_scorer_wrapper,
+            "roc_auc": "roc_auc",
+        },
+        "refit": "business",
+        "cv": cv,
+        "n_jobs": -1,
+        "verbose": 0,
+    }
+
+    if param_grid is not None:
+        search = GridSearchCV(estimator, param_grid, **search_kw)
+    else:
+        search = RandomizedSearchCV(
+            estimator,
+            param_dist,
+            n_iter=n_iter,
+            random_state=42,
+            **search_kw,
+        )
+
+    search.fit(X, y)
+    return search.best_estimator_, search.best_params_, float(search.best_score_)
+
+
+def make_tuned_factory(best_estimator: Any) -> EstimatorFactory:
+    """Return a factory that clones a fitted estimator template for CV folds."""
+    return lambda _y: clone(best_estimator)

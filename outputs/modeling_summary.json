@@ -1,0 +1,14 @@
+{
+  "best_model": "logistic_regression",
+  "best_feature_set": "top_01",
+  "features": [
+    "var_389"
+  ],
+  "cv_business_mean": 2306.0,
+  "hpo_cv_business_mean": 2306.0,
+  "oof_profit_optimal_k": 997,
+  "oof_breakeven_k": 1000,
+  "oof_optimal_k": 997,
+  "oof_business_score": 3290.0,
+  "test_targets": 997
+}

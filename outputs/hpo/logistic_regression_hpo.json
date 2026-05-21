@@ -1,7 +1,7 @@
 {
   "best_params": {
-    "logisticregression__C": 0.1,
-    "logisticregression__penalty": "l1"
+    "logisticregression__C": 0.001,
+    "logisticregression__penalty": "l2"
   },
-  "score": 7180.0
+  "cv_business_mean": 2306.0
 }

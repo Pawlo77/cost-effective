@@ -8,6 +8,8 @@ from sklearn.model_selection import StratifiedKFold, cross_val_score
 from sklearn.preprocessing import StandardScaler
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 
+from .utils import custom_scorer
+
 
 class MulticollinearityFilter:
     """Remove redundant features and apply L1-driven sparsity.
@@ -178,7 +180,8 @@ class MulticollinearityFilter:
                 X_scaled,
                 y,
                 cv=cv,
-                scoring="roc_auc",
+                scoring=custom_scorer,
+                n_jobs=-1,
             ).mean()
             coef_paths.append({
                 "C": C,
@@ -195,7 +198,7 @@ class MulticollinearityFilter:
 
         # Select C in a data-driven manner.
         # 1) If an explicit target is given, choose closest feature count.
-        # 2) Otherwise, maximize CV AUC within a preferred sparsity band.
+        # 2) Otherwise, maximize CV business score within a preferred sparsity band.
         if n_features_target is not None:
             idx = (coef_df["n_nonzero"] - n_features_target).abs().idxmin()
         else:
@@ -214,7 +217,7 @@ class MulticollinearityFilter:
         selected = X.columns[optimal_coefs != 0].tolist()
 
         print(f"  Optimal C: {optimal_C:.6f} → {len(selected)} non-zero features")
-        print(f"  Cross-validated ROC-AUC at optimal C: {coef_df.loc[idx, 'cv_score']:.4f}")
+        print(f"  Cross-validated business score at optimal C: {coef_df.loc[idx, 'cv_score']:.4f}")
         print(f"  Selected {len(selected)} features\n")
 
         self.lasso_path_ = coef_df

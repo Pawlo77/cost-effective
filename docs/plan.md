@@ -228,7 +228,7 @@ def objective(trial):
   - Tree models (LightGBM, XGBoost): use Optuna with 100–200 trials per model, 5-fold stratified CV using the ranked Stage 2 feature sets.
   - Linear models (Logistic Regression): run a deterministic grid sweep over penalties and `C` (e.g. [0.001, 0.01, 0.1, 1, 10, 100]) and evaluate with 5-fold CV under the custom scorer.
   - Record best hyperparameters per model, persist Optuna study artifacts and CV result summaries to `outputs/hpo/` for reproducibility.
-  - optimize by ROC-AUC to speed up HPO, as custom scorer is dependent on TP/FP counts which are roc-auc optimized.
+  - Optimize with the top-k business scorer (`max_k=1000`) under 5-fold stratified CV; do not substitute ROC-AUC for model selection.
 
 - [x] **Feature-Set Comparison**
   - Evaluate models on multiple top-k subsets derived from RFECV ranking.

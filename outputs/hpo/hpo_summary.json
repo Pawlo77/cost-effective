@@ -1,30 +1,9 @@
 {
-  "lightgbm": {
-    "best_params": {
-      "subsample": 0.6,
-      "num_leaves": 31,
-      "n_estimators": 400,
-      "max_depth": 3,
-      "learning_rate": 0.01,
-      "colsample_bytree": 0.8
-    },
-    "score": 7500.0
-  },
   "logistic_regression": {
     "best_params": {
-      "logisticregression__C": 0.1,
-      "logisticregression__penalty": "l1"
+      "logisticregression__C": 0.001,
+      "logisticregression__penalty": "l2"
     },
-    "score": 7180.0
-  },
-  "xgboost": {
-    "best_params": {
-      "subsample": 0.6,
-      "n_estimators": 200,
-      "max_depth": 8,
-      "learning_rate": 0.01,
-      "colsample_bytree": 0.6
-    },
-    "score": 8855.0
+    "cv_business_mean": 2306.0
   }
 }
