@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import average_precision_score, roc_auc_score
 from sklearn.model_selection import StratifiedKFold, cross_val_predict, cross_validate
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import RobustScaler
@@ -18,6 +19,7 @@ from ..dataset.utils import (
     get_classifier,
 )
 from .dataclasses import (
+    F1CurveResult,
     FeatureSetEvaluation,
     FinalPredictionResult,
     ModelComparisonResult,
@@ -78,6 +80,7 @@ def evaluate_feature_sets(
             scoring={
                 "business": custom_scorer,
                 "f1": f1_scorer_wrapper,
+                "roc_auc": "roc_auc",
                 "business_no_var": business_scorer_no_var_penalty,
             },
             n_jobs=-1,
@@ -85,7 +88,20 @@ def evaluate_feature_sets(
 
         cv_scores = cv_results["test_business"]
         f1_scores = cv_results["test_f1"]
-        business_no_var_scores = cv_results["test_business_no_var"]
+        # roc_auc may be absent or NaN if a CV fold contains only one class.
+        # Fall back to an OOF-based ROC AUC when necessary.
+        roc_auc_scores = cv_results.get("test_roc_auc", np.full(len(cv_scores), np.nan))
+        if np.all(np.isnan(roc_auc_scores)):
+            try:
+                oof = compute_oof_probabilities(X[features], y, estimator_factory=factory, cv=cv)
+                roc_val = float(roc_auc_score(y.to_numpy(), oof))
+                roc_auc_scores = np.full(len(cv_scores), roc_val)
+            except Exception:  # noqa: S110
+                # if fallback fails, keep NaNs
+                pass
+        business_no_var_scores = cv_results.get(
+            "test_business_no_var", np.full(len(cv_scores), np.nan)
+        )
 
         evaluations.append(
             FeatureSetEvaluation(
@@ -94,6 +110,7 @@ def evaluate_feature_sets(
                 cv_score_mean=float(cv_scores.mean()),
                 cv_score_std=float(cv_scores.std(ddof=0)),
                 f1_score=float(f1_scores.mean()),
+                roc_auc_score=float(roc_auc_scores.mean()),
                 business_score_no_var_penalty=float(business_no_var_scores.mean()),
                 features=tuple(features),
             )
@@ -208,6 +225,7 @@ def compare_models_on_feature_sets(
         scorers = {
             "business": custom_scorer,
             "f1": f1_scorer_wrapper,
+            "roc_auc": "roc_auc",
             "business_no_var": business_scorer_no_var_penalty,
         }
 
@@ -227,7 +245,19 @@ def compare_models_on_feature_sets(
 
             cv_scores = cv_results["test_business"]
             f1_scores = cv_results["test_f1"]
-            business_no_var_scores = cv_results["test_business_no_var"]
+            roc_auc_scores = cv_results.get("test_roc_auc", np.full(len(cv_scores), np.nan))
+            if np.all(np.isnan(roc_auc_scores)):
+                try:
+                    oof = compute_oof_probabilities(
+                        X[features], y, estimator_factory=factory, cv=cv
+                    )
+                    roc_val = float(roc_auc_score(y.to_numpy(), oof))
+                    roc_auc_scores = np.full(len(cv_scores), roc_val)
+                except Exception:  # noqa: S110
+                    pass
+            business_no_var_scores = cv_results.get(
+                "test_business_no_var", np.full(len(cv_scores), np.nan)
+            )
 
             comparisons.append(
                 ModelComparisonResult(
@@ -237,6 +267,7 @@ def compare_models_on_feature_sets(
                     cv_score_mean=float(cv_scores.mean()),
                     cv_score_std=float(cv_scores.std(ddof=0)),
                     f1_score=float(f1_scores.mean()),
+                    roc_auc_score=float(roc_auc_scores.mean()),
                     business_score_no_var_penalty=float(business_no_var_scores.mean()),
                 )
             )
@@ -300,6 +331,84 @@ def build_profit_curve(
         best_k=int(best_row["k"]),
         best_threshold=float(best_row["threshold"]),
         best_score=float(best_row["score"]),
+    )
+
+
+def build_f1_curve(
+    y_true: pd.Series,
+    probabilities: np.ndarray,
+    max_targets: int | None = None,
+) -> F1CurveResult:
+    """Create a threshold sweep optimized for F1, with ROC AUC diagnostics."""
+    y_array = y_true.to_numpy()
+    ranking = np.argsort(probabilities)[::-1]
+    ranked_targets = y_array[ranking]
+    ranked_probabilities = probabilities[ranking]
+
+    total_positives = int((y_array == 1).sum())
+    total_negatives = int((y_array == 0).sum())
+    limit = len(ranked_targets) if max_targets is None else min(max_targets, len(ranked_targets))
+
+    cumulative_tp = np.cumsum(ranked_targets[:limit] == 1)
+    cumulative_fp = np.cumsum(ranked_targets[:limit] == 0)
+    cumulative_fn = total_positives - cumulative_tp
+    cumulative_tn = total_negatives - cumulative_fp
+
+    precision = np.divide(
+        cumulative_tp,
+        cumulative_tp + cumulative_fp,
+        out=np.zeros_like(cumulative_tp, dtype=float),
+        where=(cumulative_tp + cumulative_fp) > 0,
+    )
+    recall = np.divide(
+        cumulative_tp,
+        total_positives,
+        out=np.zeros_like(cumulative_tp, dtype=float),
+        where=total_positives > 0,
+    )
+    f1 = np.divide(
+        2 * precision * recall,
+        precision + recall,
+        out=np.zeros_like(precision, dtype=float),
+        where=(precision + recall) > 0,
+    )
+    accuracy = np.divide(
+        cumulative_tp + cumulative_tn,
+        len(y_array),
+        out=np.zeros_like(cumulative_tp, dtype=float),
+        where=len(y_array) > 0,
+    )
+    specificity = np.divide(
+        cumulative_tn,
+        total_negatives,
+        out=np.zeros_like(cumulative_tn, dtype=float),
+        where=total_negatives > 0,
+    )
+
+    curve = pd.DataFrame({
+        "k": np.arange(1, limit + 1),
+        "tp": cumulative_tp,
+        "fp": cumulative_fp,
+        "fn": cumulative_fn,
+        "tn": cumulative_tn,
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+        "accuracy": accuracy,
+        "specificity": specificity,
+        "threshold": ranked_probabilities[:limit],
+    })
+
+    best_idx = int(curve["f1"].idxmax())
+    best_row = curve.iloc[best_idx]
+
+    return F1CurveResult(
+        curve=curve,
+        best_k=int(best_row["k"]),
+        best_threshold=float(best_row["threshold"]),
+        best_f1=float(best_row["f1"]),
+        roc_auc=float(roc_auc_score(y_array, probabilities)),
+        average_precision=float(average_precision_score(y_array, probabilities)),
     )
 
 

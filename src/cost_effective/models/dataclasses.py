@@ -17,6 +17,7 @@ class FeatureSetEvaluation:
     cv_score_std: float
     features: tuple[str, ...]
     f1_score: float | None = None
+    roc_auc_score: float | None = None
     business_score_no_var_penalty: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -27,6 +28,7 @@ class FeatureSetEvaluation:
             "cv_score_mean": self.cv_score_mean,
             "cv_score_std": self.cv_score_std,
             "f1_score": self.f1_score,
+            "roc_auc_score": self.roc_auc_score,
             "business_score_no_var_penalty": self.business_score_no_var_penalty,
             "features": list(self.features),
         }
@@ -42,6 +44,7 @@ class ModelComparisonResult:
     cv_score_mean: float
     cv_score_std: float
     f1_score: float | None = None
+    roc_auc_score: float | None = None
     business_score_no_var_penalty: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -53,6 +56,7 @@ class ModelComparisonResult:
             "cv_score_mean": self.cv_score_mean,
             "cv_score_std": self.cv_score_std,
             "f1_score": self.f1_score,
+            "roc_auc_score": self.roc_auc_score,
             "business_score_no_var_penalty": self.business_score_no_var_penalty,
         }
 
@@ -65,6 +69,18 @@ class ProfitCurveResult:
     best_k: int
     best_threshold: float
     best_score: float
+
+
+@dataclass(frozen=True, slots=True)
+class F1CurveResult:
+    """Threshold sweep built from out-of-fold probabilities and F1."""
+
+    curve: pd.DataFrame
+    best_k: int
+    best_threshold: float
+    best_f1: float
+    roc_auc: float
+    average_precision: float
 
 
 @dataclass(frozen=True, slots=True)

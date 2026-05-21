@@ -1,12 +1,14 @@
 """Modeling helpers for cost-effective predictive modeling."""
 
 from .dataclasses import (
+    F1CurveResult,
     FeatureSetEvaluation,
     FinalPredictionResult,
     ModelComparisonResult,
     ProfitCurveResult,
 )
 from .modeling import (
+    build_f1_curve,
     build_model_factories,
     build_profit_curve,
     build_top_k_feature_sets,
@@ -18,10 +20,12 @@ from .modeling import (
 )
 
 __all__ = [
+    "F1CurveResult",
     "FeatureSetEvaluation",
     "FinalPredictionResult",
     "ModelComparisonResult",
     "ProfitCurveResult",
+    "build_f1_curve",
     "build_model_factories",
     "build_profit_curve",
     "build_top_k_feature_sets",
