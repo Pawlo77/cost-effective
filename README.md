@@ -1,28 +1,41 @@
-# Cost effective predictive modeling
+# Cost‑effective Predictive Modeling
 
-TODO
+Lightweight research code for cost-aware predictive modeling, feature selection, and hyperparameter tuning with custom business metrics.
 
 ## Quick Start
 
-Run the main checks and pipeline entry points:
+Prerequisites: Python 3.10+ and a working virtual environment. From the project root:
 
 ```bash
+# install dependencies into the active environment
 make install
+
+# prepare datasets (downloads / preprocessing)
 make datasets
+
+# run the test suite
 make test
+
+# run all pre-commit hooks locally
 make pre-commit-all
 ```
 
-## MLflow
+## Notebooks & Examples
 
-Local MLflow runs are stored under `mlruns/` by default. Launch the UI with:
+- Interactive exploration and experiments live in the `notebooks/` folder.
+- Recommended to open `notebooks/baseline.ipynb` and `notebooks/modeling.ipynb` for baseline experiments and modeling flows.
 
-```bash
-make mlflow
+## Outputs
 
-# use a different port if 5000 is occupied
-make mlflow MLFLOW_PORT=5001
+- `outputs/` contains experiment results, HPO summaries and model predictions.
+- Key files: `outputs/baseline_results.json`, `outputs/model_predictions.csv`.
 
-# equivalent direct command
-mlflow ui --backend-store-uri sqlite:///mlruns.db --default-artifact-root ./mlruns
-```
+## Contributing
+
+1. Run `make pre-commit-all` before committing.
+2. Keep code style consistent (project uses `ruff` + black formatting).
+3. Add tests under `tests/` for new logic.
+
+## License
+
+See the `LICENSE` file in the repository root.

@@ -185,11 +185,10 @@ def objective(trial):
   - Validate on simple baseline (all features, logistic regression).
   - Verify that scorer correctly computes TP, FP, and penalizes feature count.
 
-- [ ] **Baseline Model (Logistic Regression, All Features)**
-  - Fit LR on full feature set (500 vars).
-  - Compute 5-fold CV score with custom scorer.
-  - Record baseline business score.
-  - This establishes the floor and validates scorer implementation.
+- [x] **Baseline Model (Logistic Regression, All Features)**
+  - Fitted LR (grid search over `C`) on full feature set (500 vars).
+  - Computed 5-fold CV with the custom scorer and saved results to `outputs/baseline_results.json`.
+  - Recorded baseline business score; this establishes the floor and validates the scorer implementation.
 
 - [x] **Shared Infrastructure**
   - Set up repository (Git with shared branch).
@@ -224,32 +223,22 @@ def objective(trial):
 
 ### Week 3 — Modeling, Feature-Set Comparison & Threshold Tuning
 
-- [ ] **Optuna Hyperparameter Search**
-  - LGBM HPO: 100–200 trials, 5-fold CV using the ranked Stage 2 feature sets.
-  - Record best hyperparameters.
-  - Wall time budget: ≤3 hours.
+- [x] **Hyperparameter Optimization (all models)**
+  - Perform systematic hyperparameter sweeps for every candidate model (LightGBM, XGBoost, Logistic Regression).
+  - Tree models (LightGBM, XGBoost): use Optuna with 100–200 trials per model, 5-fold stratified CV using the ranked Stage 2 feature sets.
+  - Linear models (Logistic Regression): run a deterministic grid sweep over penalties and `C` (e.g. [0.001, 0.01, 0.1, 1, 10, 100]) and evaluate with 5-fold CV under the custom scorer.
+  - Record best hyperparameters per model, persist Optuna study artifacts and CV result summaries to `outputs/hpo/` for reproducibility.
+  - optimize by ROC-AUC to speed up HPO, as custom scorer is dependent on TP/FP counts which are roc-auc optimized.
 
 - [x] **Feature-Set Comparison**
   - Evaluate models on multiple top-k subsets derived from RFECV ranking.
   - Compare business scores across feature-set sizes.
   - Select the best-ranked subset for final model tuning.
 
-- [ ] **Threshold Tuning**
-  - Generate test probabilities from final model.
-  - Sweep thresholds k = 100 to 1,000, compute profit curve.
-  - Select optimal k*, translate to probability threshold.
-  - Apply to test set, generate final predictions (up to 1,000 targets).
-
-- [ ] **Ensemble (Optional)**
-  - Train secondary XGBoost with same feature set.
-  - Average probabilities: `proba_ensemble = 0.5 * proba_lgbm + 0.5 * proba_xgb`.
-  - Repeat threshold tuning on ensemble.
-
-- [ ] **Milestone 2**
-  - Final model locked.
-  - Test predictions generated.
-  - All analysis complete.
-  - Ready for report sprint.
+- [x] **Threshold Tuning**
+  - Generated cross-validated probabilities and swept thresholds (0.0–1.0) to compute profit curve.
+  - Selected optimal threshold and recorded associated TP/FP/F1 and business score.
+  - Saved optimal threshold configuration to `outputs/optimal_threshold.json` and applied it to derive target predictions.
 
 ### Week 4 — Report, Presentation & Submission
 
