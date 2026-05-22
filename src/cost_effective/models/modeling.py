@@ -182,6 +182,20 @@ def evaluate_feature_sets(
     )
 
 
+def make_logistic_baseline_pipeline(C: float = 1.0) -> Any:
+    """Logistic baseline: per-fold ``RobustScaler`` + balanced LR (for notebooks)."""
+    return make_pipeline(
+        RobustScaler(),
+        LogisticRegression(
+            max_iter=2000,
+            C=C,
+            class_weight="balanced",
+            random_state=42,
+            solver="lbfgs",
+        ),
+    )
+
+
 def build_model_factories(y: pd.Series) -> dict[str, EstimatorFactory]:
     """Return a small model zoo for comparison on ranked feature sets."""
 

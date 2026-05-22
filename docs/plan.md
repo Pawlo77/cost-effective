@@ -234,7 +234,7 @@ Prefer this approach when the ranking is weak and the profit curve plateaus: elb
 
 ## 8. Baseline notebook
 
-`baseline.ipynb` fits logistic regression on **all 500** features with `RobustScaler` inside each CV fold (no global scaling leakage). Top-$k$ business and F1 scorers match modeling. Useful to show the cost of $N_{\text{vars}}=500$ and to validate the scorer. Outputs under [outputs/baseline_results.json](outputs/baseline_results.json) and [outputs/optimal_threshold.json](outputs/optimal_threshold.json) (legacy filenames; stores optimal $k$). Not used for submission.
+`baseline.ipynb` runs reference floors (k=0, prior/stratified/uniform dummies, random rankers, 1-feature LR, 500-feature LR) with top-$k$ scorers and per-fold scaling. Useful for scorer validation and feature-tax illustration. Outputs: [outputs/baseline_results.json](outputs/baseline_results.json), [outputs/optimal_threshold.json](outputs/optimal_threshold.json) (500-feature LR OOF only). Not used for submission.
 
 ---
 

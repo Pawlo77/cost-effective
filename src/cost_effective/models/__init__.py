@@ -1,5 +1,12 @@
 """Modeling helpers for cost-effective predictive modeling."""
 
+from .baselines import (
+    RandomScoreClassifier,
+    best_univariate_feature,
+    cross_validate_baseline,
+    make_dummy_baseline,
+    zero_feature_matrix,
+)
 from .dataclasses import (
     F1CurveResult,
     FeatureSetEvaluation,
@@ -18,6 +25,7 @@ from .modeling import (
     compute_oof_probabilities,
     evaluate_feature_sets,
     fit_final_model_and_predict,
+    make_logistic_baseline_pipeline,
     make_tuned_factory,
     rank_features,
     rank_features_drop_column_cv,
@@ -41,9 +49,11 @@ __all__ = [
     "FinalPredictionResult",
     "ModelComparisonResult",
     "ProfitCurveResult",
+    "RandomScoreClassifier",
     "TargetingConfig",
     "TargetingSelectionResult",
     "attach_best_hyperparams",
+    "best_univariate_feature",
     "build_f1_curve",
     "build_model_factories",
     "build_profit_curve",
@@ -53,9 +63,12 @@ __all__ = [
     "choose_targeting_k",
     "compare_models_on_feature_sets",
     "compute_oof_probabilities",
+    "cross_validate_baseline",
     "evaluate_feature_sets",
     "expected_value_per_contact",
     "fit_final_model_and_predict",
+    "make_dummy_baseline",
+    "make_logistic_baseline_pipeline",
     "make_tuned_factory",
     "rank_features",
     "rank_features_drop_column_cv",
@@ -64,4 +77,5 @@ __all__ = [
     "select_k_elbow",
     "select_k_ev_threshold",
     "select_k_nested_cv",
+    "zero_feature_matrix",
 ]
