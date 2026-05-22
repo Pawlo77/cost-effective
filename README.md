@@ -9,7 +9,7 @@ All experiments are orchestrated from `notebooks/` — there are no `scripts/` r
 | Step | Notebook | Purpose | Outputs |
 |------|----------|---------|---------|
 | 1 | `notebooks/feature_selection.ipynb` | Stages 1–3: filter 500→~26 features, CV drop-column ranking, top-k CV scores | `outputs/` (shared) |
-| 2 | `notebooks/baseline.ipynb` | Optional reference baseline on full scaled feature space | `outputs/baseline_results.json`, `outputs/optimal_threshold.json` |
+| 2 | `notebooks/baseline.ipynb` | Optional reference baseline on all 500 features (`RobustScaler` inside CV) | `outputs/baseline_results.json`, `outputs/optimal_threshold.json` |
 | 3a | `notebooks/modeling_topk_profit_curve.ipynb` | Legacy: model comparison, HPO, **max top-k profit curve** on OOF, test export | `outputs/topk_profit_curve/` |
 | 3b | `notebooks/modeling_ev_profit_targeting.ipynb` | **Recommended:** EV break-even, calibration, elbow + nested-CV k, combined selective k | `outputs/ev_profit_targeting/` |
 
@@ -58,13 +58,13 @@ Set `SUBMISSION_PREFIX` in each modeling notebook before export.
 
 Shared logic lives in `src/cost_effective/`:
 
-- `models/modeling.py` — CV comparison, OOF probabilities, profit curve, final predict
-- `models/profit_targeting.py` — EV k selection, calibration, test export helpers (`TargetingConfig`, `choose_targeting_k`, …)
-- `paths.py` — `APPROACH_TOPK_PROFIT_CURVE`, `APPROACH_EV_PROFIT_TARGETING`, `approach_outputs_dir()`
-- `utils.py` — param grids, HPO, submission I/O, feature name parsing
-- `notebook_setup.py` — `setup_modeling_notebook()` (style + paths + data in one call)
-- `notebook_workflows.py` — compare/tune/OOF/export steps used by both notebooks
-- `plots.py` — profit-curve and EV dashboard figures
+- [src/cost_effective/models/modeling.py](src/cost_effective/models/modeling.py) — CV comparison, OOF probabilities, profit curve, final predict
+- [src/cost_effective/models/profit_targeting.py](src/cost_effective/models/profit_targeting.py) — EV k selection, calibration, test export helpers (`TargetingConfig`, `choose_targeting_k`, …)
+- [src/cost_effective/paths.py](src/cost_effective/paths.py) — `APPROACH_TOPK_PROFIT_CURVE`, `APPROACH_EV_PROFIT_TARGETING`, `approach_outputs_dir()`
+- [src/cost_effective/utils.py](src/cost_effective/utils.py) — param grids, HPO, submission I/O, feature name parsing
+- [src/cost_effective/notebook_setup.py](src/cost_effective/notebook_setup.py) — `setup_modeling_notebook()` (style + paths + data in one call)
+- [src/cost_effective/notebook_workflows.py](src/cost_effective/notebook_workflows.py) — compare/tune/OOF/export steps used by both notebooks
+- [src/cost_effective/plots.py](src/cost_effective/plots.py) — profit-curve and EV dashboard figures
 
 Notebooks import these modules; they are not CLI scripts.
 

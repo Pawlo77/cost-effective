@@ -1,339 +1,283 @@
-# Cost-Effective Predictive Modeling — Project Plan
+# Cost-Effective Predictive Modeling — Plan
 
-## 1. Executive Summary
+## 1. Problem and objective
 
-This project challenges us to build a **profit-maximizing** predictive model, not an accuracy-maximizing one. The business metric is explicit:
+Build a model that maximizes **profit**, not classification accuracy. The leaderboard score is:
 
-$$\text{Score} = (TP \times 10) - (FP \times 5) - (\text{NoVariables} \times 200)$$
+$$\text{Score} = (TP \times 10) - (FP \times 5) - (N_{\text{vars}} \times 200)$$
 
-This equation has three competing forces that fundamentally reshape traditional ML optimization:
+- **TP:** selected customer accepts the offer (+10).
+- **FP:** selected customer does not accept (−5).
+- **$N_{\text{vars}}$:** number of features listed in the submission (−200 each).
 
-1. **TP Reward:** +10 EUR per correct prediction (high immediate payoff).
-2. **FP Penalty:** −5 EUR per incorrect prediction (precision matters).
-3. **Variable Cost:** −200 EUR per feature (extreme sparsity pressure).
+We may contact at most **1,000** test customers. Indices must be ranked by predicted probability; only the first 1,000 count. Variables used must be listed separately.
 
-**The Core Insight:** A $200$-point penalty per variable means we must be ruthless about dimensionality. A model with $50$ features starts with a **−10,000 point deficit** regardless of predictive power.
+Data: 5,000 training rows (500 features, binary label), 5,000 test rows (labels hidden).
 
----
+Three forces drive every design choice:
 
-## 2. Mathematical Framework
-
-### 2.1 Break-Even Analysis
-
-**Question:** What probability threshold should trigger a positive prediction?
-
-**Derivation:** The expected value of predicting positive for a customer is:
-
-$$E[Score] = p(convert) \times 10 + (1 - p(convert)) \times (-5)$$
-$$E[Score] = 10p - 5 + 5p = 15p - 5$$
-
-Setting this equal to zero (break-even):
-
-$$15p - 5 = 0 \implies p = \frac{1}{3} \approx 0.333$$
-
-**Implication:** Only target customers with **$p > 0.333$** ($33.3\%$ conversion probability). The standard ML threshold of $0.5$ is overly conservative—it leaves profitable predictions on the table.
-
-### 2.2 Feature Cost Recovery
-
-Each feature must pay for itself. How many True Positives are needed to justify one variable?
-
-$$200 = \text{TP gain} \times 10 \implies \text{TP gain} \geq 20$$
-
-**Rule of thumb:** A feature is net-positive only if it generates at least **20 additional True Positives** (or prevents $40$ False Positives) in cross-validation relative to a baseline.
+1. High reward for true positives pushes recall among the top of the ranking.
+2. False positives are cheap relative to a missed TP but add up if we mail too many people.
+3. Each feature costs 200 points up front — a 50-feature model starts at −10,000 before a single correct contact.
 
 ---
 
-## 3. Feature Selection Strategy
+## 2. Mathematical framework
 
-The $500$-variable input space contains massive noise. We must apply a **multi-stage funnel** that progressively filters down to the essential predictors.
+### 2.1 Expected value per contact
 
-### 3.1 Stage 1: Broad Univariate Filtering ($500$ → $\sim 80$)
+If we contact one customer with estimated conversion probability $p$:
 
-**Goal:** Eliminate obvious noise and near-zero-variance predictors.
+$$E[\text{contact}] = p \cdot 10 + (1-p) \cdot (-5) = 15p - 5$$
 
-**Methods:**
-- **Variance Threshold:** Remove features with variance $< 0.01$ (constants and near-constants).
-- **Mutual Information:** Compute mutual information between each feature and target. Retain only top $50$–$80$ by MI.
-- **Tree-Based Importance:** Train a shallow LightGBM on all features, rank by impurity-based importance, keep top $80$.
+Contact only when $E > 0$:
 
-**Output:** $\sim 80$ candidate features.
+$$15p - 5 > 0 \quad \Rightarrow \quad p > \frac{1}{3} \approx 0.333$$
 
-### 3.2 Stage 2: Multicollinearity & Linear Regularization ($80$ → $\sim 25$)
+A default classifier threshold of 0.5 is conservative under this cost matrix. Ranking by $p$ or by $15p-5$ is equivalent for ordering (affine map).
 
-**Goal:** Remove redundant features and apply penalty-based sparsity.
+### 2.2 Feature cost recovery
 
-**Methods:**
-- **Correlation Pruning:** Compute Pearson/Spearman correlations. For correlated pairs ($|r| \geq 0.85$), retain only the feature with highest univariate association with target.
-- **VIF Filtering:** Calculate Variance Inflation Factor. Remove features with VIF $> 5$.
-- **L1 Regularization (LASSO):** Fit Logistic Regression with L1 penalty. Sweep regularization strength parameter (C) from weak to strong, then select the model with best cross-validated performance within an approximate sparsity band (about $20–30$ non-zero features).
+One extra feature costs 200 score points. It must earn back at least 200 via contacts:
 
-**Output:** Data-driven candidate feature set (typically around $20–30$ features) with reduced collinearity.
+- **20 additional TPs** at +10 each, or
+- **40 fewer FPs** at −5 each, or
+- a mix with the same net.
 
-### 3.3 Stage 3: Order Features by importance
+Use this as a sanity check when adding variables after Stage 3, not as a hard rule (correlated features share lift).
 
-**Goal:** Use RFECV to rank the Stage 2-selected features so that downstream modeling can compare models on multiple feature-set sizes, with smaller subsets constrained to the most important variables.
+### 2.3 Top-$k$ selection under a cap
 
-**Rationale:**
-- Stage 2 already removes most noise and collinearity, so Stage 3 should focus on ordering rather than aggressively refitting the feature space.
-- RFECV gives a cross-validated importance ranking under the custom scorer, which is useful for comparing top-k feature subsets in modeling.
-- This lets us evaluate whether the best business score comes from the full Stage 2 set or from a smaller importance-limited subset.
+Let $N = 5000$ training rows. Sort customers by $\hat{p}$ descending. For each $k \in \{1,\ldots,\min(1000,N)\}$:
 
-**Process:**
-1. Fit RFECV on the Stage 2 feature matrix using the custom business scorer and the weighted classifier.
-2. Use the RFECV ranking to order Stage 2 features from most to least useful.
-3. Build candidate feature sets by size, such as top-k prefixes of the ranked list, for model comparison.
-4. Keep the ranked Stage 2 feature pool as the source for hyperparameter optimization and final model selection.
+- Take the top $k$ indices as predicted positive.
+- Count $TP_k$, $FP_k$ on labeled train (OOF probabilities for honest evaluation).
+- **Profit at $k$:** $\text{Score}_k = 10 \cdot TP_k - 5 \cdot FP_k - 200 \cdot N_{\text{vars}}$.
 
-**Output:** **Ranked Stage 2 feature list** plus a set of top-k feature subsets for modeling and business-score comparison.
+Submission uses one $k \leq 1000$ and the corresponding top-$k$ test indices. The business scorer in CV must use the same top-$k$ logic with `max_k=1000`, not a full-column threshold at $p=1/3`.
 
-**Note:** RFECV is used here as an ordering step inside cross-validation, so the feature ranking remains aligned with the custom scorer while limiting leakage across folds.
+### 2.4 Capped campaign identity
+
+If we always fill the list to $k$ contacts, $TP_k + FP_k = k$, so
+
+$$\text{Score}_k = 10 \cdot TP_k - 5(k - TP_k) - 200 N_{\text{vars}} = 15 \cdot TP_k - 5k - 200 N_{\text{vars}}.$$
+
+Marginal customer at rank $k$ (probability $p_k$) contributes expected $15p_k - 5$ before feature cost. That links the EV rule to the profit curve.
 
 ---
 
-## 4. Modeling Strategy
+## 3. Pipeline and artifacts
 
-### 4.1 Recommended Algorithms
+```
+notebooks/feature_selection.ipynb
+    → outputs/feature_selection_results.csv      (Stage 3 ranking)
+    → outputs/stage3_feature_set_scores.csv      (top-k subset CV scores)
 
-| Algorithm | Strengths | Weaknesses | Use Case |
-|---|---|---|---|
-| **LightGBM** | Fast, handles imbalance via `scale_pos_weight`, leaf-wise growth, Gradient-based One-Side Sampling (GOSS) | Requires careful hyperparameter tuning | Primary model; use for Optuna HPO |
-| **XGBoost** | Robust to outliers, excellent calibration, level-wise growth reduces overfitting | Slower than LightGBM | Ensemble component; secondary model |
-| **Logistic Regression** | Interpretable, well-calibrated, immune to high-variance overfitting on sparse features | No non-linear interactions | Baseline comparison; interpretability |
+notebooks/baseline.ipynb                         (optional; 500 features)
 
-### 4.2 Class Imbalance Handling
+notebooks/modeling_topk_profit_curve.ipynb
+    → outputs/topk_profit_curve/
 
-Train data likely has imbalanced classes. Counter this with:
-
-- **`scale_pos_weight` in LGBM/XGBoost:** Set to ratio of negative to positive samples.
-  ```
-  scale_pos_weight = n_negatives / n_positives
-  ```
-  This forces the gradient descent to penalize minority-class errors more heavily.
-
-- **SMOTE (Optional):** Synthetic Minority Over-Sampling, but only in cross-validation, never on test data.
-
-- **Class Weights:** Assign higher weights to positive class during training.
-
-### 4.3 Threshold Tuning via Profit Curve
-
-Standard models output probabilities. The question: which cutoff maximizes profit on exactly 1,000 targets?
-
-**Process:**
-
-1. **Fit Model:** Train LightGBM/XGBoost on training data with selected features.
-2. **Get Test Probabilities:** `proba = model.predict_proba(X_test)[:, 1]`
-3. **Sort Descending:** Order test set by predicted probability, highest first.
-4. **Sweep Thresholds:** For each possible top-k (k = 100 to 1,000):
-   - Count predicted positives in top-k.
-   - Compute hypothetical TP, FP using validation ground truth (if available via cross-val).
-   - Calculate score contribution: $(TP \times 10) - (FP \times 5)$.
-5. **Optimal k\*:** Select k where $(TP \times 10) - (FP \times 5)$ is maximized, capped at 1,000.
-6. **Extract Threshold:** Convert k* back to a probability threshold and apply to final test set.
-
-**Alternative (if no validation labels):** Use the mathematical break-even threshold **p > 0.333** as a floor, then refine via cross-validation profit curves.
-
----
-
-## 5. Hyperparameter Optimization
-
-Use **Optuna** with the custom scorer as the objective function.
-
-### 5.1 LGBM Search Space
-
-```python
-def objective(trial):
-    params = {
-        "num_leaves": trial.suggest_int("num_leaves", 10, 100),
-        "learning_rate": trial.suggest_loguniform("learning_rate", 0.001, 0.1),
-        "max_depth": trial.suggest_int("max_depth", 3, 15),
-        "min_child_samples": trial.suggest_int("min_child_samples", 5, 50),
-        "subsample": trial.suggest_uniform("subsample", 0.5, 1.0),
-        "colsample_bytree": trial.suggest_uniform("colsample_bytree", 0.5, 1.0),
-        "scale_pos_weight": scale_pos_weight,  # Set from data
-    }
-
-    model = LGBMClassifier(**params, n_estimators=200, verbose=-1)
-    cv_scores = cross_val_score(model, X_train, y_train, cv=5, scoring=custom_scorer)
-    return cv_scores.mean()
+notebooks/modeling_ev_profit_targeting.ipynb
+    → outputs/ev_profit_targeting/
 ```
 
-- **Direction:** `maximize`
-- **Trials:** 100–200 (wall time: 1–3 hours on laptop)
-- **CV:** 5-fold stratified
+Implementation lives in [src/cost_effective/](src/cost_effective/). Notebooks orchestrate; they are not the source of truth for metric definitions.
 
-### 5.2 Key Hyperparameters to Tune
-
-- `num_leaves`: Controls tree complexity (balance bias–variance).
-- `learning_rate`: Step size (smaller = more stable, slower).
-- `max_depth`: Tree depth limit (prevent overfitting on sparse features).
-- `min_child_samples`: Minimum samples per leaf (regularization).
-- `subsample` / `colsample_bytree`: Row/column subsampling (robustness).
+**Leakage:** feature ranking, HPO, and $k$ selection use cross-validation on train only. Final model fits all train labels once; test receives ranked indices only.
 
 ---
 
-## 6. Implementation Checklist
+## 4. Feature selection
 
-### Week 1 — Baseline & Infrastructure
+500 inputs are mostly noise. Reduce in three stages, then expose ranked subsets for modeling.
 
-- [x] **Data Loading & EDA**
-  - Load `x_train.txt`, `y_train.txt`, `x_test.txt`.
-  - Compute class balance, missing values, feature statistics.
-  - Document baseline conversion rate in training set.
+### 4.1 Stage 1 — univariate filter (500 → ~80)
 
-- [x] **Custom Scorer Implementation**
-  - Implement `custom_scorer(estimator, X, y)` function.
-  - Validate on simple baseline (all features, logistic regression).
-  - Verify that scorer correctly computes TP, FP, and penalizes feature count.
+**Goal:** drop dead columns and keep signal for downstream steps.
 
-- [x] **Baseline Model (Logistic Regression, All Features)**
-  - Fitted LR (grid search over `C`) on full feature set (500 vars).
-  - Computed 5-fold CV with the custom scorer and saved results to `outputs/baseline_results.json`.
-  - Recorded baseline business score; this establishes the floor and validates the scorer implementation.
+**Steps:**
 
-- [x] **Shared Infrastructure**
-  - Set up repository (Git with shared branch).
-  - Create `src/custom_scorer.py` module.
-  - Create `src/feature_selection.py` skeleton.
-  - Create `src/models.py` skeleton.
+1. **Variance threshold** — remove near-constant features (e.g. variance $< 0.01$).
+2. **Mutual information** — score each feature vs. label; keep top ~50–80 by MI.
+3. **LightGBM importance** — shallow tree on all remaining columns; keep top ~80 by split gain.
 
-### Week 2 — Feature Selection Stages 1 & 2
+**Output:** union or intersect of top lists (~80 columns). Implemented in [notebooks/feature_selection.ipynb](notebooks/feature_selection.ipynb).
 
-- [x] **Stage 1: Univariate Filtering (500 → 80)**
-  - Compute mutual information for each feature.
-  - Compute tree-based importance (LightGBM on all features).
-  - Select top 80 by combined ranking.
-  - Document removal decisions.
+### 4.2 Stage 2 — redundancy and sparsity (80 → ~26)
 
-- [x] **Stage 2: Multicollinearity & L1 Regularization (80 → ~25, data-driven)**
-  - Correlation matrix, identify correlated clusters.
-  - VIF analysis, remove high-VIF features.
-  - LASSO path: sweep C parameter, select a data-driven feature count (typically 20–30 non-zero coefficients).
-  - Compare with baseline score using this Stage 2-selected set.
+**Goal:** remove collinearity and enforce a sparse linear structure before ranking.
 
-- [x] **Stage 3: RFECV Ordering of Stage 2 Features**
-  - Fit RFECV with the custom business scorer on the Stage 2 feature set.
-  - Rank Stage 2 features from most to least useful.
-  - Build top-k feature subsets for downstream model comparison.
-  - Save ranked features and subset results for modeling.
+**Steps:**
 
-- [x] **Interim Checkpoint**
-  - Confirm Stage 2 feature set (approximately 20–30 total, data-driven) improves CV score relative to all 500.
-  - Document feature engineering pipeline.
-  - Stage 3 ordering complete: ready for modeling sprint.
+1. **Correlation pruning** — among pairs with $|r| \geq 0.85$, drop the member with weaker univariate association to the label.
+2. **VIF** — iteratively remove features with VIF $> 5$.
+3. **LASSO path** — logistic regression with L1 penalty; sweep $C$; pick a solution in a sensible sparsity band (~20–30 non-zero coefficients) using cross-validated business score, not ROC-AUC alone.
 
-### Week 3 — Modeling, Feature-Set Comparison & Threshold Tuning
+**Output:** Stage 2 feature list (~26).
 
-- [x] **Hyperparameter Optimization (all models)**
-  - Perform systematic hyperparameter sweeps for every candidate model (LightGBM, XGBoost, Logistic Regression).
-  - Tree models (LightGBM, XGBoost): use Optuna with 100–200 trials per model, 5-fold stratified CV using the ranked Stage 2 feature sets.
-  - Linear models (Logistic Regression): run a deterministic grid sweep over penalties and `C` (e.g. [0.001, 0.01, 0.1, 1, 10, 100]) and evaluate with 5-fold CV under the custom scorer.
-  - Record best hyperparameters per model, persist Optuna study artifacts and CV result summaries to `outputs/hpo/` for reproducibility.
-  - Optimize with the top-k business scorer (`max_k=1000`) under 5-fold stratified CV; do not substitute ROC-AUC for model selection.
+### 4.3 Stage 3 — order and top-$k$ subsets (~26 ranked)
 
-- [x] **Feature-Set Comparison**
-  - Evaluate models on multiple top-k subsets derived from RFECV ranking.
-  - Compare business scores across feature-set sizes.
-  - Select the best-ranked subset for final model tuning.
+**Goal:** rank Stage 2 features for profit and precompute subset scores.
 
-- [x] **Threshold Tuning**
-  - Generated cross-validated probabilities and swept thresholds (0.0–1.0) to compute profit curve.
-  - Selected optimal threshold and recorded associated TP/FP/F1 and business score.
-  - Saved optimal threshold configuration to `outputs/optimal_threshold.json` and applied it to derive target predictions.
+**Method:** **drop-column CV ranking** with the business scorer (`max_k=1000`), implemented as `rank_features_drop_column_cv`. For each feature, measure how much mean CV business drops when that column is removed from the Stage 2 matrix. Low drop ⇒ important. This runs inside CV and avoids fitting RFECV on the full training matrix in one shot (which risks optimistic bias).
 
-### Week 4 — Report, Presentation & Submission
+**Subsets:** prefixes of the ranked list — `top_01`, `top_03`, `top_05`, …, `top_26`. For each subset, run model comparison CV and store means in `stage3_feature_set_scores.csv`.
 
-- [ ] **Report (5 pages LaTeX)**
-  - **§1 (0.5 pg):** Introduction & problem statement. (High-level framing; cost-sensitive setup.)
-  - **§2 (1 pg):** Methodology. (Custom scorer, feature selection pipeline, algorithms, threshold tuning.)
-  - **§3 (1.5 pg):** Results & experiments. (Feature selection funnel table, profit curve, model comparison, CV scores.)
-  - **§4 (1 pg):** Discussion. (Design decisions, trade-offs, challenges, insights.)
-  - **§5 (0.75 pg):** Conclusion & reproducibility notes.
-  - **§6 (0.25 pg):** References.
-
-- [ ] **Required Figures**
-- [ ] **Fig 1:** Feature Selection Funnel (500 → 80 → ~25 data-driven).
-  - **Fig 2:** Profit Curve (Score vs. Target Count k).
-  - **Fig 3:** Model Comparison (LGBM, XGBoost, LR business scores).
-- [ ] **Fig 4:** Feature Importance (mutual information or LightGBM importance of final Stage 2-selected features).
-  - **Fig 5:** Class Distribution (baseline imbalance ratio).
-
-- [ ] **Presentation (7 min max)**
-  - **Slide 1 (0:00–0:30):** Title, team, problem framing. "Why is this problem different from standard ML?"
-  - **Slide 2 (0:30–1:15):** Scoring function breakdown & break-even threshold (p = 0.333).
-  - **Slide 3 (1:15–2:00):** Feature selection funnel & final feature set.
-  - **Slide 4 (2:00–3:00):** Model selection & hyperparameter tuning results.
-  - **Slide 5 (3:00–4:00):** Threshold tuning & profit curve.
-  - **Slide 6 (4:00–5:30):** Final model performance, business score, test predictions.
-  - **Slide 7 (5:30–7:00):** Key insights, reproducibility, lessons learned.
-
-- [ ] **Submission Package**
-  - `*_obs.txt`: Test indices (up to 1,000) in plain text, one per line.
-  - `*_vars.txt`: Variable indices (0-indexed) used by model, one per line.
-  - `report.pdf`: Final LaTeX report.
-  - `presentation.pdf` or `.pptx`: Slides.
-  - `code/`: Source code directory with:
-    - `src/custom_scorer.py`
-    - `src/feature_selection.py`
-    - `src/models.py`
-    - `notebooks/analysis.ipynb` (optional; analysis & figures)
-    - `README.md` (reproduction steps)
-  - ZIP archive: `STUDENT1ID_STUDENT2ID_STUDENT3ID.zip`
-
-- [ ] **Final Deliverable**
+**Output:** `feature_selection_results.csv` (rank table) and subset score table for modeling notebooks.
 
 ---
 
-## 7. Team Role Assignments
+## 5. Business metric implementation
 
-### Student A — Data & Baseline
-- EDA, data cleaning, imputation.
-- Baseline LR model on all features.
-- Stage 1 feature selection (univariate).
-- Coordination on data pipeline.
+Defined in [src/cost_effective/dataset/utils.py](src/cost_effective/dataset/utils.py) and used everywhere for model selection.
 
-### Student B — Feature Engineering & Modeling
-- Stage 2 multicollinearity filtering, L1 regularization.
-- Stage 3 RFECV ordering and top-k feature-set comparison.
-- Optuna hyperparameter optimization.
-- Primary modeling (LGBM, XGBoost).
+| Function | Role |
+|----------|------|
+| `business_score_from_proba` | Sort by $\hat{p}$, take top $k \leq 1000$, compute TP/FP, subtract $200 \cdot N_{\text{vars}}$ |
+| `custom_scorer` | sklearn CV scorer wrapping the above on validation folds |
+| `business_scorer_no_var_penalty` | TP/FP only (diagnostic) |
+| `f1_at_optimal_top_k` / `f1_scorer_wrapper` | F1 at the $k$ that maximizes F1 within cap — diagnostic only, not the objective |
 
-### Student C — Metrics, Threshold, Report & Presentation
-- Custom scorer implementation & validation.
-- Profit curve analysis and threshold tuning.
-- Report writing (all sections).
-- Presentation slide design and narrative.
+**Profit curve** (`build_profit_curve` in [src/cost_effective/models/modeling.py](src/cost_effective/models/modeling.py)): from OOF $\hat{p}$ on train, build cumulative TP/FP vs. $k$, compute $\text{Score}_k$ at each $k$, record argmax $k$, threshold at rank $k$, and break-even count of OOF rows with $p \geq 1/3$.
 
 ---
 
-## 8. Critical Success Factors
+## 6. Modeling
 
-1. **Custom Scorer is Non-Negotiable:** All decisions (feature selection, HPO, threshold) must use the business metric, not ROC-AUC or F1.
+### 6.1 Algorithms
 
-2. **Feature Count Discipline:** Every variable must justify its 200-point cost. Be ruthless in removal.
+| Model | Role |
+|-------|------|
+| **Logistic regression** | Sparse linear baseline; stable on few features; `RobustScaler` + L2/L1 in pipeline |
+| **LightGBM** | Main nonlinear candidate; `scale_pos_weight = n_- / n_+` |
+| **XGBoost** | Secondary tree model; same imbalance handling |
 
-3. **Threshold Tuning:** The mathematical break-even (p > 0.333) is a **lower bound**, not a target. Empirical profit curves will be more informative.
+Compare families on each top-$k$ subset from Stage 3 via `compare_models_on_feature_sets` (5-fold stratified CV, business scorer, `max_k=1000`).
 
-4. **Avoid Leakage:** Feature selection happens **inside cross-validation**. Never fit feature selectors on the full training set.
+### 6.2 Class imbalance
 
-5. **Class Imbalance:** Use `scale_pos_weight` in LGBM/XGBoost to adjust for imbalance. This is critical for precision.
+Training is roughly balanced but trees still benefit from:
 
-6. **Reproducibility:** Document every step. The code must be runnable from scratch to regenerate all results.
+- `scale_pos_weight` in LightGBM/XGBoost,
+- `class_weight='balanced'` for logistic regression,
+- optional SMOTE only inside CV folds if experimented with — never on test.
+
+### 6.3 Hyperparameter optimization
+
+Run on the **winning feature matrix only** (not on full 500 columns).
+
+- **Logistic:** grid over `C` and penalty (`LOGISTIC_PARAM_GRID` in [src/cost_effective/utils.py](src/cost_effective/utils.py)).
+- **LightGBM / XGBoost:** randomized search over depth, leaves, learning rate, subsampling (`LGB_PARAM_DIST`, `XGB_PARAM_DIST`).
+- **Refit metric:** CV business score from [src/cost_effective/dataset/utils.py](src/cost_effective/dataset/utils.py) `custom_scorer`, not ROC-AUC.
+- **Persistence:** `outputs/<approach>/hpo/` JSON per model.
+
+`run_winner_hyperparameter_search` in [src/cost_effective/utils.py](src/cost_effective/utils.py) standardizes this for both notebooks.
+
+### 6.4 Out-of-fold probabilities
+
+Before choosing $k$ or exporting test indices:
+
+1. `compute_oof_probabilities` — 5-fold stratified OOF $\hat{p}$ on train for the tuned model on the selected features.
+2. All $k$ rules below are computed from these OOF scores so we do not tune $k$ on the same rows used to fit the final model.
+
+Final step: `fit_final_model_and_predict` retrains on all train data, scores test, returns top-$k$ indices by test $\hat{p}$.
 
 ---
 
-## 9. Key References & Resources
+## 7. Contact count ($k$) — two approaches
 
-- **Scoring Derivation:** See [claude.html](claude.html) for detailed break-even math.
-- **Feature Selection Workflow:** See [gemini.md](gemini.md) for the 5-stage funnel and univariate/wrapper/embedded method combinations.
-- **Timeline & Milestones:** Checkpoint meetings during Week 1 and Week 3.
+Both approaches share compare → HPO → OOF → export. They differ only in how $k$ is chosen on train. Outputs go to separate folders (`paths.py`: `topk_profit_curve`, `ev_profit_targeting`).
+
+### 7.1 Approach A — top-$k$ profit curve maximum
+
+**Notebook:** [notebooks/modeling_topk_profit_curve.ipynb](notebooks/modeling_topk_profit_curve.ipynb)
+
+1. Load Stage 3 artifacts via `setup_modeling_notebook`.
+2. Compare models/subsets; pick CV business winner.
+3. HPO; build `tuned_factory`.
+4. OOF probabilities.
+5. **`evaluate_topk_oof`:** `build_profit_curve` + `build_f1_curve`; set $k^* = \arg\max_k \text{Score}_k$ on the OOF curve (subject to `best_k_break_even` cap inside `build_profit_curve`).
+6. Plot: `plot_topk_oof_profit_curve`.
+7. Export: `export_topk_test_predictions` with `n_targets=k^*`.
+
+Use when the OOF curve has a clear peak below 1000. If the curve is flat near the cap, this approach tends to push $k \rightarrow 1000$.
+
+### 7.2 Approach B — EV profit targeting (selective $k$)
+
+**Notebook:** [notebooks/modeling_ev_profit_targeting.ipynb](notebooks/modeling_ev_profit_targeting.ipynb)
+
+Same steps through OOF, then `choose_targeting_k` in [src/cost_effective/models/profit_targeting.py](src/cost_effective/models/profit_targeting.py) with `TargetingConfig`:
+
+| Rule | Definition |
+|------|------------|
+| **EV threshold** `k_ev` | Walk down the OOF ranking; include customers while $\hat{p} \geq 1/3$ (or optional higher floor); stop at first fail; cap 1000 |
+| **Elbow** `k_elbow` | Smallest $k$ whose OOF $\text{Score}_k \geq \alpha \cdot \max_k \text{Score}_k$ (default $\alpha=0.95$) |
+| **Nested CV** `k_nested` | On each fold, evaluate a grid of $k$ values; pick $k$ maximizing mean fold business score; default grid 50–1000 |
+| **Combined** (default) | $k = \min(k_{ev}, k_{elbow}, k_{nested})$ — conservative when EV and nested still want ~1000 |
+
+Optional **isotonic calibration** on OOF $(\hat{p}, y)$ before $k$ rules so thresholds are less distorted by uncalibrated logits.
+
+Test export: `rank_test_indices` applies train-chosen $k$ and the same break-even floor to test probabilities.
+
+Plot: `plot_ev_targeting_dashboard` (profit curve + top-200 expected value).
+
+Prefer this approach when the ranking is weak and the profit curve plateaus: elbow and combined shrink $k$ without relying on a single argmax at the cap.
+
+### 7.3 Diagnostics (both approaches)
+
+- OOF confusion matrix at chosen $k$ (`oof_confusion_matrix`).
+- F1 curve vs. business curve — report separately; F1-optimal $k$ is not the business optimum.
+- `business_score_no_var_penalty` in model tables to see TP/FP tradeoff before feature tax.
 
 ---
 
-## 10. Contingency & Risk Mitigation
+## 8. Baseline notebook
 
-| Risk | Mitigation |
-|---|---|
-| Model overfits on Stage 2-selected features | Regularize aggressively (high `min_child_samples`, low `num_leaves`). Test on held-out validation fold. |
-| Threshold tuning produces <100 targets | Check that break-even threshold (0.333) isn't filtering out all predictions. Investigate calibration. |
-| Report deadline pressure (Week 4) | Prepare figures and table templates in Week 3. Write methodology in parallel during modeling. |
-| Presentation time overruns | Rehearse the full 7-minute talk ahead of presentation. Have a 5-minute "quick version" as backup. |
+`baseline.ipynb` fits logistic regression on **all 500** features with `RobustScaler` inside each CV fold (no global scaling leakage). Top-$k$ business and F1 scorers match modeling. Useful to show the cost of $N_{\text{vars}}=500$ and to validate the scorer. Outputs under [outputs/baseline_results.json](outputs/baseline_results.json) and [outputs/optimal_threshold.json](outputs/optimal_threshold.json) (legacy filenames; stores optimal $k$). Not used for submission.
+
+---
+
+## 9. Code structure
+
+| Module | Contents |
+|--------|----------|
+| [src/cost_effective/dataset/loading.py](src/cost_effective/dataset/loading.py) | Train/test loaders, project root |
+| [src/cost_effective/dataset/utils.py](src/cost_effective/dataset/utils.py) | Scorers, break-even helpers |
+| [src/cost_effective/models/modeling.py](src/cost_effective/models/modeling.py) | Feature ranking, CV compare, OOF, curves, final predict |
+| [src/cost_effective/models/profit_targeting.py](src/cost_effective/models/profit_targeting.py) | `TargetingConfig`, EV/$k$ selection, calibration |
+| [src/cost_effective/utils.py](src/cost_effective/utils.py) | HPO grids, submission files, `load_modeling_stage_data` |
+| [src/cost_effective/notebook_setup.py](src/cost_effective/notebook_setup.py) | `setup_modeling_notebook`, `ModelingNotebookContext` |
+| [src/cost_effective/notebook_workflows.py](src/cost_effective/notebook_workflows.py) | Compare, tune, `evaluate_topk_oof`, `evaluate_ev_oof`, export helpers |
+| [src/cost_effective/plots.py](src/cost_effective/plots.py) | Shared figures |
+
+Tests under `tests/` lock scorer behavior, hyperparam attachment, and targeting logic.
+
+---
+
+## 10. Principles
+
+1. **One metric for decisions** — feature subsets, HPO refit, and $k$ use the business score (top-$k$, cap 1000).
+2. **Pay for every variable** — prefer smaller top-$k$ feature sets unless CV business clearly gains enough to cover 200 per added column.
+3. **OOF before test** — $k$ and thresholds come from OOF train scores; test only sees final ranking.
+4. **Do not confuse diagnostics with the objective** — ROC-AUC, F1 at F1-optimal $k$, and “no var penalty” scores are supporting plots only.
+5. **Reproducibility** — fixed seeds, saved CSV/JSON under approach-specific output dirs, notebooks cleared and rerun after code changes.
+
+---
+
+## 11. Deliverables
+
+- `STUDENT1_STUDENT2_STUDENT3_obs.txt` — up to 1000 test indices, one per line, best first
+- `STUDENT1_STUDENT2_STUDENT3_vars.txt` — 0-based feature indices used
+- `report.pdf`, presentation slides
+- `code/` — repository with notebooks and `src/`
+
+Submission prefix configured in `utils.DEFAULT_SUBMISSION_PREFIX`.
+
+---
+
+## 12. References
+
+- Formal task statement: [docs/task.md](docs/task.md)
+- Scorer reference implementation: [docs/claude.py](docs/claude.py)
+- Extended background notes: [docs/gemini.md](docs/gemini.md) (may lag the codebase)
