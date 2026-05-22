@@ -1,0 +1,5 @@
+expert,model,feature_set,n_features,cv_business_mean,cv_business_std,fusion_weight
+logistic_top03,logistic_regression,top_03,3,1905.0,22.135943621178654,0.3304423243712056
+lightgbm_top05,lightgbm,top_05,5,1490.0,23.874672772626646,0.25845620121422375
+borda_top05,borda_rank,top_05,5,1467.0,154.2595215861893,0.2544666088464874
+logistic_top08,logistic_regression,top_08,8,903.0,30.099833886584822,0.15663486556808326

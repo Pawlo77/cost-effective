@@ -1,0 +1,22 @@
+{
+  "approach": "segment_targeting",
+  "segment_feature_set": "top_10",
+  "model_feature_set": "top_03",
+  "submission_features": [
+    "var_389",
+    "var_308",
+    "var_93"
+  ],
+  "feature_count": 3,
+  "n_clusters": 5,
+  "cluster_counts_train": {
+    "0": 685,
+    "1": 1561,
+    "2": 603,
+    "3": 1524,
+    "4": 627
+  },
+  "oof_optimal_k": 998,
+  "oof_business_score": 3380.0,
+  "test_targets": 998
+}

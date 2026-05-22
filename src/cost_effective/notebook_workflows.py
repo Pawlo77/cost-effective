@@ -12,6 +12,9 @@ from sklearn.metrics import confusion_matrix, roc_auc_score
 
 from .dataset.utils import best_k_break_even
 from .models import (
+    FusionResult,
+    SegmentConfig,
+    SegmentTargetingResult,
     TargetingConfig,
     attach_best_hyperparams,
     build_f1_curve,
@@ -19,11 +22,17 @@ from .models import (
     build_profit_curve,
     choose_targeting_k,
     compare_models_on_feature_sets,
+    experts_summary_frame,
     fit_final_model_and_predict,
+    predict_fusion_test_probabilities,
+    predict_segment_test_probabilities,
     rank_test_indices,
+    run_fusion_committee,
 )
 from .models.dataclasses import F1CurveResult, ProfitCurveResult
 from .models.profit_targeting import TargetingSelectionResult, expected_value_per_contact
+from .models.rank_fusion import FusionExpertConfig
+from .models.segment_targeting import compute_segment_oof_probabilities
 from .notebook_setup import ModelingNotebookContext
 from .utils import (
     MODELING_CV_FOLDS,
@@ -392,3 +401,147 @@ def export_ev_test_predictions(
         winner.features,
     )
     return frame, test_diag
+
+
+def run_rank_fusion_pipeline(
+    ctx: ModelingNotebookContext,
+    expert_configs: tuple[FusionExpertConfig, ...] | None = None,
+) -> FusionResult:
+    """Build committee OOF probabilities on Stage 2 matrix."""
+    _, y_train, _, x_stage2 = stage_matrices(ctx)
+    return run_fusion_committee(
+        x_stage2,
+        y_train,
+        ctx.stage.feature_set_candidates,
+        expert_configs=expert_configs,
+        cv=MODELING_CV_FOLDS,
+    )
+
+
+def export_fusion_test_predictions(
+    ctx: ModelingNotebookContext,
+    fusion: FusionResult,
+    x_stage2: pd.DataFrame,
+    y_train: pd.Series,
+    x_test: pd.DataFrame,
+    oof_eval: TopkOofEvaluation,
+) -> pd.DataFrame:
+    """Fused test ranking, expert summary CSV, modeling summary JSON, submissions."""
+    test_prob = predict_fusion_test_probabilities(x_stage2, y_train, x_test, fusion)
+    k = oof_eval.optimal_k
+    ranking = np.argsort(test_prob)[::-1]
+    test_indices = ranking[: min(k, len(ranking))]
+
+    frame = pd.DataFrame({
+        "rank": np.arange(1, len(test_indices) + 1),
+        "sample_index": test_indices,
+        "probability": test_prob[test_indices],
+    })
+    frame.to_csv(ctx.outputs_path / "model_predictions.csv", index=False)
+    experts_summary_frame(fusion).to_csv(
+        ctx.outputs_path / "fusion_experts.csv",
+        index=False,
+    )
+
+    summary = {
+        "approach": ctx.approach,
+        "submission_features": list(fusion.submission_features),
+        "feature_count": fusion.feature_count,
+        "fusion_weights": fusion.weights,
+        "experts": [
+            {
+                "name": e.config.name,
+                "model": e.config.model_name,
+                "feature_set": e.config.feature_set_name,
+                "n_features": len(e.features),
+                "cv_business_mean": e.cv_business_mean,
+                "weight": e.weight,
+            }
+            for e in fusion.experts
+        ],
+        "oof_optimal_k": oof_eval.optimal_k,
+        "oof_business_score": float(oof_eval.business_curve.best_score),
+        "test_targets": len(test_indices),
+    }
+    with (ctx.outputs_path / "modeling_summary.json").open("w", encoding="utf-8") as fh:
+        json.dump(summary, fh, indent=2)
+
+    write_submission_files(
+        ctx.outputs_path,
+        ctx.submission_prefix,
+        test_indices,
+        list(fusion.submission_features),
+    )
+    return frame
+
+
+def run_segment_targeting_pipeline(
+    ctx: ModelingNotebookContext,
+    config: SegmentConfig,
+) -> SegmentTargetingResult:
+    """Segment-aware OOF probabilities."""
+    _, y_train, _, x_stage2 = stage_matrices(ctx)
+    candidates = ctx.stage.feature_set_candidates
+    segment_features = candidates[config.segment_feature_set]
+    model_features = candidates[config.model_feature_set]
+    return compute_segment_oof_probabilities(
+        x_stage2,
+        y_train,
+        segment_features,
+        model_features,
+        config,
+    )
+
+
+def export_segment_test_predictions(
+    ctx: ModelingNotebookContext,
+    segment_result: SegmentTargetingResult,
+    x_stage2: pd.DataFrame,
+    y_train: pd.Series,
+    x_test: pd.DataFrame,
+    oof_eval: TopkOofEvaluation,
+    config: SegmentConfig,
+) -> pd.DataFrame:
+    """Test export for segment-aware approach."""
+    candidates = ctx.stage.feature_set_candidates
+    test_prob = predict_segment_test_probabilities(
+        x_stage2,
+        y_train,
+        x_test,
+        candidates[config.segment_feature_set],
+        candidates[config.model_feature_set],
+        config,
+    )
+    k = oof_eval.optimal_k
+    ranking = np.argsort(test_prob)[::-1]
+    test_indices = ranking[: min(k, len(ranking))]
+
+    frame = pd.DataFrame({
+        "rank": np.arange(1, len(test_indices) + 1),
+        "sample_index": test_indices,
+        "probability": test_prob[test_indices],
+    })
+    frame.to_csv(ctx.outputs_path / "model_predictions.csv", index=False)
+
+    summary = {
+        "approach": ctx.approach,
+        "segment_feature_set": config.segment_feature_set,
+        "model_feature_set": config.model_feature_set,
+        "submission_features": list(segment_result.model_features),
+        "feature_count": segment_result.feature_count,
+        "n_clusters": segment_result.n_clusters,
+        "cluster_counts_train": segment_result.cluster_counts_train,
+        "oof_optimal_k": oof_eval.optimal_k,
+        "oof_business_score": float(oof_eval.business_curve.best_score),
+        "test_targets": len(test_indices),
+    }
+    with (ctx.outputs_path / "modeling_summary.json").open("w", encoding="utf-8") as fh:
+        json.dump(summary, fh, indent=2)
+
+    write_submission_files(
+        ctx.outputs_path,
+        ctx.submission_prefix,
+        test_indices,
+        list(segment_result.model_features),
+    )
+    return frame

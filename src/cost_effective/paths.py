@@ -4,6 +4,8 @@ from pathlib import Path
 
 APPROACH_TOPK_PROFIT_CURVE = "topk_profit_curve"
 APPROACH_EV_PROFIT_TARGETING = "ev_profit_targeting"
+APPROACH_RANK_FUSION = "rank_fusion"
+APPROACH_SEGMENT_TARGETING = "segment_targeting"
 
 SHARED_OUTPUTS = "outputs"
 

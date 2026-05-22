@@ -91,3 +91,71 @@ def plot_ev_targeting_dashboard(
 
     fig.tight_layout()
     return fig
+
+
+def plot_approaches_comparison(
+    comparison: pd.DataFrame,
+    *,
+    metric: str = "oof_business_score",
+    title: str | None = None,
+) -> plt.Figure:
+    """Bar chart of OOF (or CV) business score across modeling approaches."""
+    if comparison.empty or metric not in comparison.columns:
+        fig, ax = plt.subplots(figsize=(8, 4))
+        ax.set_title("No comparison data")
+        return fig
+
+    plot_df = comparison.dropna(subset=[metric]).copy()
+    plot_df = plot_df.sort_values(metric, ascending=False)
+    fig, ax = plt.subplots(figsize=(10, 5))
+    palette = sns.color_palette("husl", n_colors=len(plot_df))
+    sns.barplot(
+        data=plot_df,
+        x="label",
+        y=metric,
+        hue="label",
+        palette=palette,
+        dodge=False,
+        legend=False,
+        ax=ax,
+    )
+    ax.set_xlabel("")
+    ax.set_ylabel("Business score (penalized)")
+    ax.set_title(title or f"Modeling approaches — {metric}")
+    ax.tick_params(axis="x", rotation=25)
+    for container in ax.containers:
+        ax.bar_label(container, fmt="%.0f", padding=2, fontsize=9)
+    ax.grid(True, axis="y", alpha=0.3)
+    fig.tight_layout()
+    return fig
+
+
+def plot_approaches_features_vs_oof(comparison: pd.DataFrame) -> plt.Figure:
+    """Scatter: feature count vs OOF business score."""
+    fig, ax = plt.subplots(figsize=(8, 5))
+    if comparison.empty:
+        ax.set_title("No comparison data")
+        return fig
+    plot_df = comparison.dropna(subset=["oof_business_score"])
+    sns.scatterplot(
+        data=plot_df,
+        x="n_features",
+        y="oof_business_score",
+        hue="label",
+        s=120,
+        ax=ax,
+    )
+    for _, row in plot_df.iterrows():
+        ax.annotate(
+            row["label"],
+            (row["n_features"], row["oof_business_score"]),
+            textcoords="offset points",
+            xytext=(4, 4),
+            fontsize=8,
+        )
+    ax.set_xlabel("Variables declared (submission)")
+    ax.set_ylabel("OOF business score (penalized)")
+    ax.set_title("Feature cost vs OOF performance")
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    return fig

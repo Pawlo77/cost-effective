@@ -1,0 +1,57 @@
+{
+  "approach": "rank_fusion",
+  "submission_features": [
+    "var_254",
+    "var_308",
+    "var_365",
+    "var_389",
+    "var_420",
+    "var_463",
+    "var_87",
+    "var_93"
+  ],
+  "feature_count": 8,
+  "fusion_weights": {
+    "logistic_top03": 0.3304423243712056,
+    "lightgbm_top05": 0.25845620121422375,
+    "logistic_top08": 0.15663486556808326,
+    "borda_top05": 0.2544666088464874
+  },
+  "experts": [
+    {
+      "name": "logistic_top03",
+      "model": "logistic_regression",
+      "feature_set": "top_03",
+      "n_features": 3,
+      "cv_business_mean": 1905.0,
+      "weight": 0.3304423243712056
+    },
+    {
+      "name": "lightgbm_top05",
+      "model": "lightgbm",
+      "feature_set": "top_05",
+      "n_features": 5,
+      "cv_business_mean": 1490.0,
+      "weight": 0.25845620121422375
+    },
+    {
+      "name": "logistic_top08",
+      "model": "logistic_regression",
+      "feature_set": "top_08",
+      "n_features": 8,
+      "cv_business_mean": 903.0,
+      "weight": 0.15663486556808326
+    },
+    {
+      "name": "borda_top05",
+      "model": "borda_rank",
+      "feature_set": "top_05",
+      "n_features": 5,
+      "cv_business_mean": 1467.0,
+      "weight": 0.2544666088464874
+    }
+  ],
+  "oof_optimal_k": 994,
+  "oof_business_score": 2085.0,
+  "test_targets": 994
+}

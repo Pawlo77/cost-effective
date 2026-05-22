@@ -80,6 +80,15 @@ notebooks/modeling_topk_profit_curve.ipynb
 
 notebooks/modeling_ev_profit_targeting.ipynb
     → outputs/ev_profit_targeting/
+
+notebooks/modeling_rank_fusion.ipynb
+    → outputs/rank_fusion/
+
+notebooks/modeling_segment_targeting.ipynb
+    → outputs/segment_targeting/
+
+notebooks/modeling_compare_all.ipynb
+    → outputs/approaches_comparison.csv   (reads all modeling_summary.json)
 ```
 
 Implementation lives in [src/cost_effective/](src/cost_effective/). Notebooks orchestrate; they are not the source of truth for metric definitions.
@@ -185,9 +194,16 @@ Final step: `fit_final_model_and_predict` retrains on all train data, scores tes
 
 ---
 
-## 7. Contact count ($k$) — two approaches
+## 7. Modeling approaches
 
-Both approaches share compare → HPO → OOF → export. They differ only in how $k$ is chosen on train. Outputs go to separate folders (`paths.py`: `topk_profit_curve`, `ev_profit_targeting`).
+Single-model notebooks (A–B) share compare → HPO → OOF → export. Committee/segment notebooks (C–D) build OOF scores differently, then use the same top-$k$ profit curve for $k$. Outputs go to separate folders (`paths.py`).
+
+| ID | Folder | Module |
+|----|--------|--------|
+| A | `topk_profit_curve` | `modeling.py` |
+| B | `ev_profit_targeting` | `profit_targeting.py` |
+| C | `rank_fusion` | `rank_fusion.py` |
+| D | `segment_targeting` | `segment_targeting.py` |
 
 ### 7.1 Approach A — top-$k$ profit curve maximum
 
@@ -224,7 +240,43 @@ Plot: `plot_ev_targeting_dashboard` (profit curve + top-200 expected value).
 
 Prefer this approach when the ranking is weak and the profit curve plateaus: elbow and combined shrink $k$ without relying on a single argmax at the cap.
 
-### 7.3 Diagnostics (both approaches)
+### 7.3 Approach C — rank fusion committee
+
+**Notebook:** [notebooks/modeling_rank_fusion.ipynb](notebooks/modeling_rank_fusion.ipynb)
+
+**Module:** [src/cost_effective/models/rank_fusion.py](src/cost_effective/models/rank_fusion.py)
+
+Default experts (diverse by design):
+
+| Expert | Features | Model |
+|--------|----------|--------|
+| `logistic_top03` | `top_03` | Logistic pipeline |
+| `lightgbm_top05` | `top_05` | LightGBM |
+| `logistic_top08` | `top_08` | Logistic pipeline |
+| `borda_top05` | `top_05` | `BordaRankClassifier` (rank fusion, density-lab style) |
+
+Steps:
+
+1. `run_rank_fusion_pipeline` → per-expert CV business + OOF $\hat{p}_e$.
+2. Weights $w_e \propto \max(0, \text{CV business}_e)$; fused $\hat{p} = \sum_e w_e \hat{p}_e$.
+3. `evaluate_topk_oof` on fused scores; feature penalty uses **union** of expert columns (`submission_features`).
+4. `export_fusion_test_predictions` — per-expert refit on full train, fused test ranking.
+
+Inspired by [machine-learning/ensambles](machine-learning/ensambles) (weighted combination) and [machine-learning/features_selection](machine-learning/features_selection) (multiple ranked views).
+
+### 7.4 Approach D — segment-aware targeting
+
+**Notebook:** [notebooks/modeling_segment_targeting.ipynb](notebooks/modeling_segment_targeting.ipynb)
+
+**Module:** [src/cost_effective/models/segment_targeting.py](src/cost_effective/models/segment_targeting.py)
+
+1. Fit **GMM** on scaled (`top_10`, optional PCA) features inside each CV fold.
+2. Per cluster: logistic on `top_03` if $n_{\text{cluster}} \geq 80$, else fold fallback logistic.
+3. Pool OOF $\hat{p}$; `evaluate_topk_oof` + export with **`top_03` vars only** (segments are latent; `top_10` used only for clustering).
+
+Inspired by [machine-learning/density](machine-learning/density) (mixture structure) and [machine-learning/semi_supervised](machine-learning/semi_supervised) (structure + labels), framed as supervised segmentation rather than pure clustering.
+
+### 7.5 Diagnostics (all approaches)
 
 - OOF confusion matrix at chosen $k$ (`oof_confusion_matrix`).
 - F1 curve vs. business curve — report separately; F1-optimal $k$ is not the business optimum.
@@ -246,6 +298,8 @@ Prefer this approach when the ranking is weak and the profit curve plateaus: elb
 | [src/cost_effective/dataset/utils.py](src/cost_effective/dataset/utils.py) | Scorers, break-even helpers |
 | [src/cost_effective/models/modeling.py](src/cost_effective/models/modeling.py) | Feature ranking, CV compare, OOF, curves, final predict |
 | [src/cost_effective/models/profit_targeting.py](src/cost_effective/models/profit_targeting.py) | `TargetingConfig`, EV/$k$ selection, calibration |
+| [src/cost_effective/models/rank_fusion.py](src/cost_effective/models/rank_fusion.py) | Committee experts, `BordaRankClassifier`, fusion weights |
+| [src/cost_effective/models/segment_targeting.py](src/cost_effective/models/segment_targeting.py) | GMM segments, per-cluster OOF |
 | [src/cost_effective/utils.py](src/cost_effective/utils.py) | HPO grids, submission files, `load_modeling_stage_data` |
 | [src/cost_effective/notebook_setup.py](src/cost_effective/notebook_setup.py) | `setup_modeling_notebook`, `ModelingNotebookContext` |
 | [src/cost_effective/notebook_workflows.py](src/cost_effective/notebook_workflows.py) | Compare, tune, `evaluate_topk_oof`, `evaluate_ev_oof`, export helpers |
