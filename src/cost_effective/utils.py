@@ -17,6 +17,9 @@ import seaborn as sns
 
 from .dataset import get_classifier, load_test_data, load_training_data
 from .models import make_tuned_factory, run_hyperparameter_search
+from .models.modeling import build_top_k_feature_sets
+
+DEFAULT_STAGE3_TOP_K_SIZES: tuple[int, ...] = (1, 3, 4, 5, 8, 10, 15, 20)
 
 DEFAULT_SUBMISSION_PREFIX = "pozorski_florek_poltorak"
 MODELING_CV_FOLDS = 5
@@ -74,6 +77,22 @@ def var_name_to_index(name: str) -> int:
     if not match:
         raise ValueError(f"Unexpected feature name: {name}")
     return int(match.group(1))
+
+
+def feature_set_candidates_from_selection_results(
+    feature_selection_outputs: Path,
+    sizes: tuple[int, ...] | None = None,
+) -> dict[str, list[str]]:
+    """Build ``top_01``, ``top_03``, … from ``feature_selection_results.csv`` ranking."""
+    path = feature_selection_outputs / "feature_selection_results.csv"
+    ranked = pd.read_csv(path).sort_values("order")
+    features = ranked["feature"].tolist()
+    if not features:
+        msg = f"No ranked features in {path}"
+        raise ValueError(msg)
+    if sizes is None:
+        sizes = (*DEFAULT_STAGE3_TOP_K_SIZES, len(features))
+    return build_top_k_feature_sets(features, sizes=sizes)
 
 
 def load_modeling_stage_data(

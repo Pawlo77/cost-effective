@@ -12,6 +12,8 @@ from sklearn.metrics import confusion_matrix, roc_auc_score
 
 from .dataset.utils import best_k_break_even
 from .models import (
+    ClusterSplitConfig,
+    ClusterSplitTargetingResult,
     FusionResult,
     SegmentConfig,
     SegmentTargetingResult,
@@ -22,13 +24,17 @@ from .models import (
     build_profit_curve,
     choose_targeting_k,
     compare_models_on_feature_sets,
+    compute_cluster_split_oof_probabilities,
     experts_summary_frame,
     fit_final_model_and_predict,
+    predict_cluster_split_test_probabilities,
     predict_fusion_test_probabilities,
     predict_segment_test_probabilities,
     rank_test_indices,
     run_fusion_committee,
 )
+from .models.cluster_k_selection import kmeans_k_diagnostics
+from .models.cluster_split_targeting import build_cluster_y_profile, fit_train_cluster_labels
 from .models.dataclasses import F1CurveResult, ProfitCurveResult
 from .models.profit_targeting import TargetingSelectionResult, expected_value_per_contact
 from .models.rank_fusion import FusionExpertConfig
@@ -36,6 +42,7 @@ from .models.segment_targeting import compute_segment_oof_probabilities
 from .notebook_setup import ModelingNotebookContext
 from .utils import (
     MODELING_CV_FOLDS,
+    feature_set_candidates_from_selection_results,
     run_winner_hyperparameter_search,
     write_submission_files,
 )
@@ -543,5 +550,275 @@ def export_segment_test_predictions(
         ctx.submission_prefix,
         test_indices,
         list(segment_result.model_features),
+    )
+    return frame
+
+
+def cluster_split_feature_sets(
+    ctx: ModelingNotebookContext,
+    feature_set_candidates: dict[str, list[str]] | None = None,
+) -> dict[str, list[str]]:
+    """Top-k subsets from ``feature_selection_results.csv`` (Stage 3 ranking)."""
+    return feature_set_candidates or feature_set_candidates_from_selection_results(
+        ctx.feature_selection_outputs
+    )
+
+
+def resolve_cluster_n_clusters(
+    feature_set: str,
+    n_clusters_by_feature_set: dict[str, int | None],
+    *,
+    default_n_clusters: int | None = None,
+) -> int:
+    """Resolve k from per-set map (notebook placeholders) or optional global default."""
+    if feature_set in n_clusters_by_feature_set:
+        k = n_clusters_by_feature_set[feature_set]
+        if k is not None:
+            return int(k)
+    if default_n_clusters is not None:
+        return int(default_n_clusters)
+    msg = (
+        f"Set N_CLUSTERS_BY_FEATURE_SET[{feature_set!r}] after elbow/silhouette diagnostics "
+        "(or set DEFAULT_N_CLUSTERS)."
+    )
+    raise ValueError(msg)
+
+
+def analyze_cluster_k_for_feature_sets(
+    ctx: ModelingNotebookContext,
+    feature_set_candidates: dict[str, list[str]] | None = None,
+    k_values: range | list[int] | None = None,
+    *,
+    random_state: int = 42,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Elbow + silhouette for each top-k name; write ``cluster_k_*.csv`` under approach outputs."""
+    candidates = cluster_split_feature_sets(ctx, feature_set_candidates)
+    _, _, _, x_stage2 = stage_matrices(ctx)
+    k_range = range(2, 11) if k_values is None else k_values
+
+    detail_parts: list[pd.DataFrame] = []
+    summary_rows: list[dict[str, Any]] = []
+
+    for name in sorted(candidates):
+        features = candidates[name]
+        diag = kmeans_k_diagnostics(
+            x_stage2,
+            features,
+            k_range,
+            random_state=random_state,
+        )
+        diag = diag.assign(feature_set=name, n_features=len(features))
+        detail_parts.append(diag)
+        summary_rows.append({
+            "feature_set": name,
+            "n_features": len(features),
+            "k_min": int(diag["k"].min()) if not diag.empty else None,
+            "k_max": int(diag["k"].max()) if not diag.empty else None,
+        })
+
+    details = pd.concat(detail_parts, ignore_index=True)
+    summary_frame = pd.DataFrame(summary_rows)
+    details.to_csv(ctx.outputs_path / "cluster_k_details.csv", index=False)
+    summary_frame.to_csv(ctx.outputs_path / "cluster_k_summary.csv", index=False)
+    return summary_frame, details
+
+
+def analyze_cluster_y_distributions(
+    ctx: ModelingNotebookContext,
+    feature_set_candidates: dict[str, list[str]] | None = None,
+    n_clusters_by_feature_set: dict[str, int | None] | None = None,
+    *,
+    default_n_clusters: int | None = None,
+    random_state: int = 42,
+) -> pd.DataFrame:
+    """Train KMeans at chosen k; profile y by cluster for each configured feature set."""
+    candidates = cluster_split_feature_sets(ctx, feature_set_candidates)
+    _, y_train, _, x_stage2 = stage_matrices(ctx)
+    k_map = n_clusters_by_feature_set or {}
+
+    parts: list[pd.DataFrame] = []
+    summary_rows: list[dict[str, Any]] = []
+
+    for name in sorted(candidates):
+        try:
+            n_clusters = resolve_cluster_n_clusters(
+                name,
+                k_map,
+                default_n_clusters=default_n_clusters,
+            )
+        except ValueError:
+            continue
+
+        features = candidates[name]
+        labels = fit_train_cluster_labels(
+            x_stage2,
+            features,
+            n_clusters,
+            random_state=random_state,
+        )
+        profile = build_cluster_y_profile(y_train, labels)
+        profile = profile.assign(feature_set=name, n_clusters=n_clusters)
+        parts.append(profile)
+
+        sizes = profile["n"]
+        summary_rows.append({
+            "feature_set": name,
+            "n_clusters": n_clusters,
+            "global_positive_rate": float(profile["global_positive_rate"].iloc[0]),
+            "min_cluster_n": int(sizes.min()),
+            "max_cluster_n": int(sizes.max()),
+            "size_imbalance": float(sizes.max() / sizes.min()) if sizes.min() else float("inf"),
+            "max_positive_rate": float(profile["positive_rate"].max()),
+            "min_positive_rate": float(profile["positive_rate"].min()),
+            "max_lift": float(profile["lift_vs_global"].max()),
+        })
+
+    if not parts:
+        msg = "No feature sets with k set — fill N_CLUSTERS_BY_FEATURE_SET first"
+        raise ValueError(msg)
+
+    long_frame = pd.concat(parts, ignore_index=True)
+    summary_frame = pd.DataFrame(summary_rows)
+    long_frame.to_csv(ctx.outputs_path / "cluster_y_profiles.csv", index=False)
+    summary_frame.to_csv(ctx.outputs_path / "cluster_y_summary.csv", index=False)
+    return long_frame
+
+
+def compare_cluster_split_feature_sets(
+    ctx: ModelingNotebookContext,
+    feature_set_candidates: dict[str, list[str]] | None = None,
+    *,
+    base_config: ClusterSplitConfig | None = None,
+    n_clusters_by_feature_set: dict[str, int | None] | None = None,
+    default_n_clusters: int | None = None,
+) -> tuple[pd.DataFrame, ClusterSplitConfig, ClusterSplitTargetingResult, TopkOofEvaluation]:
+    """Run cluster-split OOF for every top-k name; save CSV; return best run."""
+    candidates = cluster_split_feature_sets(ctx, feature_set_candidates)
+    _, y_train, _, _ = stage_matrices(ctx)
+    base = base_config or ClusterSplitConfig(n_clusters=2)
+    k_map = n_clusters_by_feature_set or {}
+
+    rows: list[dict[str, Any]] = []
+    best_score = float("-inf")
+    best_config = base
+    best_result: ClusterSplitTargetingResult | None = None
+    best_eval: TopkOofEvaluation | None = None
+
+    for name in sorted(candidates):
+        n_clusters = resolve_cluster_n_clusters(
+            name,
+            k_map,
+            default_n_clusters=default_n_clusters,
+        )
+        config = ClusterSplitConfig(
+            feature_set=name,
+            n_clusters=n_clusters,
+            min_cluster_samples=base.min_cluster_samples,
+            max_targets=base.max_targets,
+            cv_folds=base.cv_folds,
+            random_state=base.random_state,
+        )
+        result = run_cluster_split_pipeline(ctx, config, candidates)
+        oof_eval = evaluate_topk_oof(
+            y_train,
+            result.oof_probabilities,
+            result.feature_count,
+            ctx.max_targets,
+        )
+        score = float(oof_eval.business_curve.best_score)
+        rows.append({
+            "feature_set": name,
+            "n_features": result.feature_count,
+            "n_clusters": n_clusters,
+            "oof_k": oof_eval.optimal_k,
+            "oof_business_score": score,
+            "cluster_counts_train": str(result.cluster_counts_train),
+        })
+        if score > best_score:
+            best_score = score
+            best_config = config
+            best_result = result
+            best_eval = oof_eval
+
+    if best_result is None or best_eval is None:
+        msg = "No feature sets to compare"
+        raise ValueError(msg)
+
+    frame = (
+        pd.DataFrame(rows)
+        .sort_values(["oof_business_score", "n_features"], ascending=[False, True])
+        .reset_index(drop=True)
+    )
+    frame.to_csv(ctx.outputs_path / "feature_set_comparison.csv", index=False)
+    return frame, best_config, best_result, best_eval
+
+
+def run_cluster_split_pipeline(
+    ctx: ModelingNotebookContext,
+    config: ClusterSplitConfig,
+    feature_set_candidates: dict[str, list[str]] | None = None,
+) -> ClusterSplitTargetingResult:
+    """Two-cluster KMeans split with per-cluster feature sets."""
+    _, y_train, _, x_stage2 = stage_matrices(ctx)
+    candidates = cluster_split_feature_sets(ctx, feature_set_candidates)
+    features = candidates[config.feature_set]
+    return compute_cluster_split_oof_probabilities(
+        x_stage2,
+        y_train,
+        features,
+        config,
+    )
+
+
+def export_cluster_split_test_predictions(
+    ctx: ModelingNotebookContext,
+    split_result: ClusterSplitTargetingResult,
+    x_stage2: pd.DataFrame,
+    y_train: pd.Series,
+    x_test: pd.DataFrame,
+    oof_eval: TopkOofEvaluation,
+    config: ClusterSplitConfig,
+    feature_set_candidates: dict[str, list[str]] | None = None,
+) -> pd.DataFrame:
+    """Test export for two-cluster split approach."""
+    candidates = cluster_split_feature_sets(ctx, feature_set_candidates)
+    features = candidates[config.feature_set]
+    test_prob = predict_cluster_split_test_probabilities(
+        x_stage2,
+        y_train,
+        x_test,
+        features,
+        config,
+    )
+    k = oof_eval.optimal_k
+    ranking = np.argsort(test_prob)[::-1]
+    test_indices = ranking[: min(k, len(ranking))]
+
+    frame = pd.DataFrame({
+        "rank": np.arange(1, len(test_indices) + 1),
+        "sample_index": test_indices,
+        "probability": test_prob[test_indices],
+    })
+    frame.to_csv(ctx.outputs_path / "model_predictions.csv", index=False)
+
+    summary = {
+        "approach": ctx.approach,
+        "feature_set": config.feature_set,
+        "submission_features": list(split_result.features),
+        "feature_count": split_result.feature_count,
+        "n_clusters": split_result.n_clusters,
+        "cluster_counts_train": split_result.cluster_counts_train,
+        "oof_optimal_k": oof_eval.optimal_k,
+        "oof_business_score": float(oof_eval.business_curve.best_score),
+        "test_targets": len(test_indices),
+    }
+    with (ctx.outputs_path / "modeling_summary.json").open("w", encoding="utf-8") as fh:
+        json.dump(summary, fh, indent=2)
+
+    write_submission_files(
+        ctx.outputs_path,
+        ctx.submission_prefix,
+        test_indices,
+        list(split_result.features),
     )
     return frame

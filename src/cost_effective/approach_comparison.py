@@ -9,6 +9,7 @@ from typing import Any
 import pandas as pd
 
 from .paths import (
+    APPROACH_CLUSTER_SPLIT,
     APPROACH_EV_PROFIT_TARGETING,
     APPROACH_RANK_FUSION,
     APPROACH_SEGMENT_TARGETING,
@@ -22,6 +23,7 @@ ALL_MODELING_APPROACHES: tuple[str, ...] = (
     APPROACH_EV_PROFIT_TARGETING,
     APPROACH_RANK_FUSION,
     APPROACH_SEGMENT_TARGETING,
+    APPROACH_CLUSTER_SPLIT,
 )
 
 APPROACH_LABELS: dict[str, str] = {
@@ -29,6 +31,7 @@ APPROACH_LABELS: dict[str, str] = {
     APPROACH_EV_PROFIT_TARGETING: "EV profit targeting",
     APPROACH_RANK_FUSION: "Rank fusion committee",
     APPROACH_SEGMENT_TARGETING: "Segment-aware targeting",
+    APPROACH_CLUSTER_SPLIT: "Cluster split (k=2)",
 }
 
 
@@ -50,7 +53,7 @@ def _normalize_summary(approach: str, raw: dict[str, Any]) -> dict[str, Any]:
     model = raw.get("best_model")
     if approach == APPROACH_RANK_FUSION:
         model = f"committee ({len(raw.get('experts', []))} experts)"
-    elif approach == APPROACH_SEGMENT_TARGETING:
+    elif approach in (APPROACH_SEGMENT_TARGETING, APPROACH_CLUSTER_SPLIT):
         model = "per-cluster logistic"
 
     row: dict[str, Any] = {
@@ -59,7 +62,9 @@ def _normalize_summary(approach: str, raw: dict[str, Any]) -> dict[str, Any]:
         "model": model,
         "feature_set": raw.get("best_feature_set")
         or raw.get("model_feature_set")
-        or raw.get("segment_feature_set"),
+        or raw.get("segment_feature_set")
+        or raw.get("feature_set")
+        or raw.get("cluster_feature_set"),
         "n_features": int(feature_count),
         "features": ", ".join(features) if features else "",
         "cv_business_mean": raw.get("cv_business_mean"),
@@ -80,6 +85,11 @@ def _normalize_summary(approach: str, raw: dict[str, Any]) -> dict[str, Any]:
     if approach == APPROACH_SEGMENT_TARGETING:
         row["targeting_notes"] = (
             f"GMM k={raw.get('n_clusters')}; clusters={raw.get('cluster_counts_train')}"
+        )
+    if approach == APPROACH_CLUSTER_SPLIT:
+        row["targeting_notes"] = (
+            f"KMeans k={raw.get('n_clusters')}; feature_set={raw.get('feature_set')}; "
+            f"counts={raw.get('cluster_counts_train')}"
         )
     return row
 

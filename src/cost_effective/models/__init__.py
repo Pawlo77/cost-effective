@@ -7,6 +7,12 @@ from .baselines import (
     make_dummy_baseline,
     zero_feature_matrix,
 )
+from .cluster_split_targeting import (
+    ClusterSplitConfig,
+    ClusterSplitTargetingResult,
+    compute_cluster_split_oof_probabilities,
+    predict_cluster_split_test_probabilities,
+)
 from .dataclasses import (
     F1CurveResult,
     FeatureSetEvaluation,
@@ -64,6 +70,8 @@ from .segment_targeting import (
 __all__ = [
     "DEFAULT_FUSION_EXPERTS",
     "BordaRankClassifier",
+    "ClusterSplitConfig",
+    "ClusterSplitTargetingResult",
     "F1CurveResult",
     "FeatureSetEvaluation",
     "FinalPredictionResult",
@@ -87,6 +95,7 @@ __all__ = [
     "calibrate_probabilities",
     "choose_targeting_k",
     "compare_models_on_feature_sets",
+    "compute_cluster_split_oof_probabilities",
     "compute_oof_probabilities",
     "compute_segment_oof_probabilities",
     "cross_validate_baseline",
@@ -99,6 +108,7 @@ __all__ = [
     "make_dummy_baseline",
     "make_logistic_baseline_pipeline",
     "make_tuned_factory",
+    "predict_cluster_split_test_probabilities",
     "predict_fusion_test_probabilities",
     "predict_segment_test_probabilities",
     "rank_features",

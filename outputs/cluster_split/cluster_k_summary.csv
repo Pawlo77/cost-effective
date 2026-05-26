@@ -1,0 +1,10 @@
+feature_set,n_features,k_min,k_max
+top_01,1,2,10
+top_03,3,2,10
+top_04,4,2,10
+top_05,5,2,10
+top_08,8,2,10
+top_10,10,2,10
+top_15,15,2,10
+top_20,20,2,10
+top_26,26,2,10

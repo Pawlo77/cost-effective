@@ -1,5 +1,6 @@
 approach,label,model,feature_set,n_features,features,cv_business_mean,hpo_cv_business_mean,oof_k,oof_business_score,test_targets,targeting_notes
 segment_targeting,Segment-aware targeting,per-cluster logistic,top_03,3,"var_389, var_308, var_93",,,998,3380.0,998,"GMM k=5; clusters={'0': 685, '1': 1561, '2': 603, '3': 1524, '4': 627}"
 topk_profit_curve,Top-k profit curve,logistic_regression,top_01,1,var_389,2306.0,2306.0,997,3290.0,997,
+cluster_split,Cluster split (k=2),per-cluster logistic,top_05,5,"var_389, var_308, var_93, var_87, var_254",,,998,3280.0,998,"KMeans k=2; feature_set=top_05; counts={'0': 2497, '1': 1294, '2': 628, '3': 581}"
 ev_profit_targeting,EV profit targeting,logistic_regression,top_01,1,var_389,2306.0,2306.0,939,3145.0,939,"combined; k_ev=1000, k_elbow=939, k_nested=1000"
 rank_fusion,Rank fusion committee,committee (4 experts),,8,"var_254, var_308, var_365, var_389, var_420, var_463, var_87, var_93",,,994,2085.0,994,"weights: logistic_top03=0.33, lightgbm_top05=0.26"

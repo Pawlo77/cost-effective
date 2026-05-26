@@ -1,0 +1,24 @@
+"""Tests for KMeans k diagnostics."""
+
+import numpy as np
+import pandas as pd
+
+from cost_effective.models.cluster_k_selection import (
+    kmeans_k_diagnostics,
+    suggest_elbow_k,
+)
+
+
+def test_elbow_k_on_simple_curve() -> None:
+    k = np.array([2, 3, 4, 5])
+    inertia = np.array([100.0, 40.0, 35.0, 33.0])
+    assert suggest_elbow_k(k, inertia) == 3
+
+
+def test_kmeans_k_diagnostics_columns() -> None:
+    rng = np.random.default_rng(0)
+    cols = [f"var_{i}" for i in range(5)]
+    x = pd.DataFrame(rng.normal(size=(120, 5)), columns=cols)
+    diag = kmeans_k_diagnostics(x, cols, range(2, 5), random_state=0)
+    assert set(diag.columns) >= {"k", "inertia", "silhouette"}
+    assert diag["k"].min() >= 2

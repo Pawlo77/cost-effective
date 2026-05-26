@@ -14,6 +14,7 @@ All experiments are orchestrated from `notebooks/` — there are no `scripts/` r
 | 3b | `notebooks/modeling_ev_profit_targeting.ipynb` | EV break-even, calibration, combined selective k | `outputs/ev_profit_targeting/` |
 | 3c | `notebooks/modeling_rank_fusion.ipynb` | **Committee:** diverse experts, weighted OOF fusion, union of features | `outputs/rank_fusion/` |
 | 3d | `notebooks/modeling_segment_targeting.ipynb` | **Segments:** GMM on `top_10`, per-cluster logistic on `top_03` | `outputs/segment_targeting/` |
+| 3e | `notebooks/modeling_cluster_split.ipynb` | **Cluster split:** elbow/silhouette k per `top_k`, then per-cluster logists | `outputs/cluster_split/` |
 | 4 | `notebooks/modeling_compare_all.ipynb` | Compare all approaches (reads each `modeling_summary.json`) | `outputs/approaches_comparison.csv` |
 
 Re-run notebooks after code changes so artifacts stay in sync.
@@ -24,6 +25,7 @@ Re-run notebooks after code changes so artifacts stay in sync.
 - **`modeling_ev_profit_targeting`** — uses expected value per contact (15p−5), isotonic calibration on OOF, and `min(k_ev, k_elbow, k_nested_cv)` so k is usually **much smaller** when the model is unselective.
 - **`modeling_rank_fusion`** — fuses logistic/LightGBM/Borda experts on different top-k subsets; weights from CV business score.
 - **`modeling_segment_targeting`** — GMM customer segments, per-segment rankers, global top-k on OOF.
+- **`modeling_cluster_split`** — Elbow/silhouette k diagnostics per top-k set; you set `N_CLUSTERS_BY_FEATURE_SET`, then OOF sweep + export best run.
 
 All modeling notebooks read Stage 3 outputs from `outputs/` and write **only** into their own subdirectory.
 
