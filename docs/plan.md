@@ -87,6 +87,9 @@ notebooks/modeling_rank_fusion.ipynb
 notebooks/modeling_segment_targeting.ipynb
     → outputs/segment_targeting/
 
+notebooks/modeling_cluster_split.ipynb
+    → outputs/cluster_split/
+
 notebooks/modeling_compare_all.ipynb
     → outputs/approaches_comparison.csv   (reads all modeling_summary.json)
 ```
@@ -134,6 +137,16 @@ Implementation lives in [src/cost_effective/](src/cost_effective/). Notebooks or
 **Subsets:** prefixes of the ranked list — `top_01`, `top_03`, `top_05`, …, `top_26`. For each subset, run model comparison CV and store means in `stage3_feature_set_scores.csv`.
 
 **Output:** `feature_selection_results.csv` (rank table) and subset score table for modeling notebooks.
+
+### 4.4 Optional ranking methods (notebook-only)
+
+After Stage 3, [notebooks/feature_selection.ipynb](notebooks/feature_selection.ipynb) can compare extra rankings on the Stage 2 matrix:
+
+- **MDI** — Random Forest mean decrease in impurity
+- **Permutation importance** — sklearn on a fitted RF
+- **Boruta** — `boruta_py` (`boruta` in `pyproject.toml`)
+
+Sections compare top-1 / top-5 / top-10 overlap across methods and CV business score for each method × $k$. Does not replace `feature_selection_results.csv` (Stage 3 drop-column rank remains the modeling default).
 
 ---
 
@@ -196,7 +209,7 @@ Final step: `fit_final_model_and_predict` retrains on all train data, scores tes
 
 ## 7. Modeling approaches
 
-Single-model notebooks (A–B) share compare → HPO → OOF → export. Committee/segment notebooks (C–D) build OOF scores differently, then use the same top-$k$ profit curve for $k$. Outputs go to separate folders (`paths.py`).
+Single-model notebooks (A–B) share compare → HPO → OOF → export. Committee/segment/cluster notebooks (C–E) build OOF scores differently, then use the same top-$k$ profit curve for $k$ (cluster split pools per-cluster OOF). Outputs go to separate folders (`paths.py`).
 
 | ID | Folder | Module |
 |----|--------|--------|
@@ -204,6 +217,7 @@ Single-model notebooks (A–B) share compare → HPO → OOF → export. Committ
 | B | `ev_profit_targeting` | `profit_targeting.py` |
 | C | `rank_fusion` | `rank_fusion.py` |
 | D | `segment_targeting` | `segment_targeting.py` |
+| E | `cluster_split` | `cluster_split_targeting.py`, `cluster_k_selection.py` |
 
 ### 7.1 Approach A — top-$k$ profit curve maximum
 
@@ -276,7 +290,22 @@ Inspired by [machine-learning/ensambles](machine-learning/ensambles) (weighted c
 
 Inspired by [machine-learning/density](machine-learning/density) (mixture structure) and [machine-learning/semi_supervised](machine-learning/semi_supervised) (structure + labels), framed as supervised segmentation rather than pure clustering.
 
-### 7.5 Diagnostics (all approaches)
+### 7.5 Approach E — cluster split targeting
+
+**Notebook:** [notebooks/modeling_cluster_split.ipynb](notebooks/modeling_cluster_split.ipynb)
+
+**Modules:** [src/cost_effective/models/cluster_split_targeting.py](src/cost_effective/models/cluster_split_targeting.py), [src/cost_effective/models/cluster_k_selection.py](src/cost_effective/models/cluster_k_selection.py)
+
+Same top-$k$ feature sets as other notebooks (`top_01` … from Stage 3). For each candidate set:
+
+1. **K diagnostics** — `kmeans_k_diagnostics`: inertia + silhouette vs. $k$ on scaled features (no PCA for clustering). Plots in `plot_cluster_k_selection_grid`. **No automatic elbow pick** — user sets `N_CLUSTERS_BY_FEATURE_SET` / `DEFAULT_N_CLUSTERS` after inspecting curves.
+2. **Cluster y profiles** — `analyze_cluster_y_distributions`: size, $P(y=1)$, lift vs. global rate; `plot_cluster_y_profiles_grid` / `plot_cluster_y_profile`.
+3. **OOF sweep** — `compare_cluster_split_feature_sets`: KMeans on scaled top-$k$, per-cluster logistic (fallback model for small clusters), pooled OOF $\hat{p}$; pick best feature set by OOF business score.
+4. **Export** — `export_cluster_split_test_predictions`; submission vars = that run’s top-$k$ list.
+
+Outputs under `outputs/cluster_split/` (`cluster_k_*.csv`, `cluster_y_*.csv`, `feature_set_comparison.csv`, `modeling_summary.json`, submission files). Included in `modeling_compare_all.ipynb` via `approach_comparison.py`.
+
+### 7.6 Diagnostics (all approaches)
 
 - OOF confusion matrix at chosen $k$ (`oof_confusion_matrix`).
 - F1 curve vs. business curve — report separately; F1-optimal $k$ is not the business optimum.
@@ -287,6 +316,8 @@ Inspired by [machine-learning/density](machine-learning/density) (mixture struct
 ## 8. Baseline notebook
 
 `baseline.ipynb` runs reference floors (k=0, prior/stratified/uniform dummies, random rankers, 1-feature LR, 500-feature LR) with top-$k$ scorers and per-fold scaling. Useful for scorer validation and feature-tax illustration. Outputs: [outputs/baseline_results.json](outputs/baseline_results.json), [outputs/optimal_threshold.json](outputs/optimal_threshold.json) (500-feature LR OOF only). Not used for submission.
+
+**Added:** optional **top-$k$ raw vs PCA** comparison for $k \in \{1, 3, 5, 10, 15, 25\}$ — logistic on ranked raw features vs. first $k$ PCA components (500 features scaled, PCA fit once with 25 components). Metrics: **top-$k$ F1 and ROC AUC only** (no business / variable penalty in that table).
 
 ---
 
@@ -300,12 +331,16 @@ Inspired by [machine-learning/density](machine-learning/density) (mixture struct
 | [src/cost_effective/models/profit_targeting.py](src/cost_effective/models/profit_targeting.py) | `TargetingConfig`, EV/$k$ selection, calibration |
 | [src/cost_effective/models/rank_fusion.py](src/cost_effective/models/rank_fusion.py) | Committee experts, `BordaRankClassifier`, fusion weights |
 | [src/cost_effective/models/segment_targeting.py](src/cost_effective/models/segment_targeting.py) | GMM segments, per-cluster OOF |
+| [src/cost_effective/models/cluster_k_selection.py](src/cost_effective/models/cluster_k_selection.py) | KMeans inertia / silhouette diagnostics |
+| [src/cost_effective/models/cluster_split_targeting.py](src/cost_effective/models/cluster_split_targeting.py) | KMeans split, per-cluster logistic OOF and test |
+| [src/cost_effective/approach_comparison.py](src/cost_effective/approach_comparison.py) | Load `modeling_summary.json` from all approaches |
 | [src/cost_effective/utils.py](src/cost_effective/utils.py) | HPO grids, submission files, `load_modeling_stage_data` |
 | [src/cost_effective/notebook_setup.py](src/cost_effective/notebook_setup.py) | `setup_modeling_notebook`, `ModelingNotebookContext` |
 | [src/cost_effective/notebook_workflows.py](src/cost_effective/notebook_workflows.py) | Compare, tune, `evaluate_topk_oof`, `evaluate_ev_oof`, export helpers |
-| [src/cost_effective/plots.py](src/cost_effective/plots.py) | Shared figures |
+| [src/cost_effective/plots.py](src/cost_effective/plots.py) | Profit/EV curves, cluster k-grid, cluster y-profile plots |
+| [src/cost_effective/paths.py](src/cost_effective/paths.py) | `APPROACH_*` constants and per-approach output dirs |
 
-Tests under `tests/` lock scorer behavior, hyperparam attachment, and targeting logic.
+Tests under `tests/` lock scorer behavior, hyperparam attachment, cluster split OOF, and k diagnostics.
 
 ---
 
