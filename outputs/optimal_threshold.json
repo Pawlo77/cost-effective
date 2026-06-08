@@ -1,7 +1,7 @@
 {
   "model": "logistic_500feat",
   "optimal_k": 1000,
-  "optimal_threshold": 0.5419373241160776,
+  "optimal_threshold": 0.5419373241160778,
   "business_score": -95295.0,
   "tp": 647,
   "fp": 353,

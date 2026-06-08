@@ -210,7 +210,6 @@ def build_model_factories(y: pd.Series) -> dict[str, EstimatorFactory]:
             LogisticRegression(
                 max_iter=2000,
                 solver="saga",
-                penalty="elasticnet",
                 l1_ratio=0.5,
                 class_weight="balanced",
                 random_state=42,

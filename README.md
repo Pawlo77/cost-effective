@@ -4,12 +4,13 @@ Lightweight research code for cost-aware predictive modeling, feature selection,
 
 ## Notebook pipeline
 
-All experiments are orchestrated from `notebooks/` — there are no `scripts/` runners.
+All experiments are orchestrated from `notebooks/`; there are no `scripts/` runners. The classic workflow lives directly in `notebooks/`, while the stricter alternative feature-selection workflow lives in `notebooks/alternative_approach/`.
 
 | Step | Notebook | Purpose | Outputs |
 |------|----------|---------|---------|
 | 1 | `notebooks/feature_selection.ipynb` | Stages 1–3: filter 500→~26 features, CV drop-column ranking, top-k CV scores; optional MDI, permutation importance, and Boruta rankings with top-1/5/10 overlap and CV profit comparison | `outputs/` (shared) |
 | 2 | `notebooks/baseline.ipynb` | Optional reference baselines on all 500 features (`RobustScaler` inside CV); **top-k raw vs PCA** sweep (`k ∈ {1,3,5,10,15,25}`, F1@top-k and ROC AUC only) | `outputs/baseline_results.json`, `outputs/optimal_threshold.json` |
+| 2 alt | `notebooks/alternative_approach/modeling_feature_selection_alternative_setup.ipynb` | Alternative feature-selection path: define reusable assessment/tuning folds and a declarative recipe space before any prescreening or model fitting | `outputs/feature_selection_alternative/01_fold_plan_and_recipe_space/` |
 | 3a | `notebooks/modeling_topk_profit_curve.ipynb` | Single model, HPO, **max top-k profit curve** on OOF | `outputs/topk_profit_curve/` |
 | 3b | `notebooks/modeling_ev_profit_targeting.ipynb` | EV break-even, calibration, combined selective k | `outputs/ev_profit_targeting/` |
 | 3c | `notebooks/modeling_rank_fusion.ipynb` | **Committee:** diverse experts, weighted OOF fusion, union of features | `outputs/rank_fusion/` |
@@ -17,12 +18,28 @@ All experiments are orchestrated from `notebooks/` — there are no `scripts/` r
 | 3e | `notebooks/modeling_cluster_split.ipynb` | **Cluster split:** inertia/silhouette k per top-k set (manual k), cluster y profiles, OOF sweep over feature sets, export best | `outputs/cluster_split/` |
 | 4 | `notebooks/modeling_compare_all.ipynb` | Compare all approaches (reads each `modeling_summary.json`) | `outputs/approaches_comparison.csv` |
 
+
+### Alternative Feature-Selection Workflow
+
+The classic path starts with `notebooks/feature_selection.ipynb`: it is fast, compact, and useful for narrowing the 500 raw variables into practical top-k feature sets. The alternative path is stricter. It first writes a reusable fold plan and a declarative recipe space, then later stages can fit prescreening methods and models only inside the data partition allowed for that evaluation step.
+
+Start this path with `notebooks/alternative_approach/modeling_feature_selection_alternative_setup.ipynb`. The notebook does not train models and does not select variables. It only persists the fold assignments, feature-size grid, prescreening recipes, model spec space, and pipeline recipe space under `outputs/feature_selection_alternative/01_fold_plan_and_recipe_space/`.
+
+Use this workflow when validation reliability matters more than iteration speed. Existing heavy artifacts are cache-aware: notebook helpers can reuse previous output directories when present, so rerunning the setup or later stages does not force expensive training from scratch.
+
+Alternative path notebooks, in order:
+
+1. `notebooks/alternative_approach/modeling_feature_selection_alternative_setup.ipynb`
+2. `notebooks/alternative_approach/modeling_feature_selection_alternative_inner_selection.ipynb`
+3. `notebooks/alternative_approach/modeling_feature_selection_alternative_evaluation.ipynb`
+4. `notebooks/alternative_approach/modeling_feature_selection_alternative_refit_ranking.ipynb`
+
 Re-run notebooks after code changes so artifacts stay in sync.
 
 ### Which modeling notebook?
 
 - **`modeling_topk_profit_curve`** — picks k ≈ 1000 when the OOF profit curve is flat near the cap (weak ranking → mails almost everyone allowed).
-- **`modeling_ev_profit_targeting`** — uses expected value per contact (15p−5), isotonic calibration on OOF, and `min(k_ev, k_elbow, k_nested_cv)` so k is usually **much smaller** when the model is unselective.
+- **`modeling_ev_profit_targeting`** — uses expected value per contact (15p−5), isotonic calibration on OOF, and a conservative inner-CV k estimate so k is usually **much smaller** when the model is unselective.
 - **`modeling_rank_fusion`** — fuses logistic/LightGBM/Borda experts on different top-k subsets; weights from CV business score.
 - **`modeling_segment_targeting`** — GMM customer segments, per-segment rankers, global top-k on OOF.
 - **`modeling_cluster_split`** — KMeans on scaled top-k features (no PCA); elbow/silhouette plots per feature set; you set `N_CLUSTERS_BY_FEATURE_SET`, inspect cluster target rates, then OOF-sweep all top-k sets and export the best run.
@@ -37,9 +54,16 @@ make test
 ```
 
 ```text
-feature_selection.ipynb  →  modeling_ev_profit_targeting.ipynb   # preferred
-                         →  modeling_topk_profit_curve.ipynb    # comparison / legacy
-                         →  modeling_cluster_split.ipynb        # cluster-based alternative
+# Classic path
+notebooks/feature_selection.ipynb
+  → notebooks/modeling_ev_profit_targeting.ipynb
+  → notebooks/modeling_compare_all.ipynb
+
+# Alternative feature-selection path
+notebooks/alternative_approach/modeling_feature_selection_alternative_setup.ipynb
+  → notebooks/alternative_approach/modeling_feature_selection_alternative_inner_selection.ipynb
+  → notebooks/alternative_approach/modeling_feature_selection_alternative_evaluation.ipynb
+  → notebooks/alternative_approach/modeling_feature_selection_alternative_refit_ranking.ipynb
 ```
 
 ## Output layout
@@ -75,6 +99,8 @@ Shared logic lives in `src/cost_effective/`:
 - [src/cost_effective/utils.py](src/cost_effective/utils.py) — param grids, HPO, submission I/O, feature name parsing
 - [src/cost_effective/notebook_setup.py](src/cost_effective/notebook_setup.py) — `setup_modeling_notebook()` (style + paths + data in one call)
 - [src/cost_effective/notebook_workflows.py](src/cost_effective/notebook_workflows.py) — compare/tune/OOF/export steps used by modeling notebooks
+- [src/cost_effective/notebook_artifacts.py](src/cost_effective/notebook_artifacts.py) — cache-aware CSV/JSON and output-directory helpers used by heavier notebooks
+- [src/cost_effective/models/feature_selection_alternative_setup.py](src/cost_effective/models/feature_selection_alternative_setup.py) — public setup aliases for the alternative feature-selection workflow
 - [src/cost_effective/plots.py](src/cost_effective/plots.py) — profit-curve, EV dashboard, and cluster k / y-profile figures
 
 Notebooks import these modules; they are not CLI scripts.
