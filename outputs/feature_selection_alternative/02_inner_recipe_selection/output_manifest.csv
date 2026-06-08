@@ -1,0 +1,15 @@
+file,meaning
+stage_config.json,Alternative stage-02 execution configuration.
+inner_cv_run_log.csv,Timestamped progress log.
+inner_validation_cost_scale.csv,Per-inner-fold row-count diagnostic.
+round1_inner_oof_scores.csv,Round 1 recipe scores computed directly from compact in-memory tuning-OOF blocks.
+round1_inner_oof_baselines.csv,Round 1 select-all and random baseline diagnostics.
+round1_selected_feature_recipes.csv,Feature recipes selected per outer fold for round 2; can be reused if round-1 OOF scores are unavailable.
+round2_inner_oof_scores.csv,Round 2 full pipeline scores computed directly from compact in-memory tuning-OOF blocks.
+round2_inner_oof_baselines.csv,Round 2 select-all and random baseline diagnostics.
+outer_selected_pipeline_recipes.csv,Final per-assessment-fold recipes for alternative evaluation.
+round1_prescreen_method_failures.csv,"Optional method failures in round 1, if any."
+round1_prescreen_recipe_failures.csv,"Skipped prescreen recipes in round 1, if any."
+round2_prescreen_method_failures.csv,"Optional method failures in round 2, if any."
+round2_prescreen_recipe_failures.csv,"Skipped prescreen recipes in round 2, if any."
+stage_status_summary.json,Compact status summary.

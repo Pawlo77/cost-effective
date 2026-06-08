@@ -1,0 +1,15 @@
+file,meaning
+stage_config.json,Notebook-04 execution config.
+final_refit_run_log.csv,Timestamped notebook-04 log.
+notebook03_finalists_used.csv,Finalists loaded from notebook 03.
+final_refit_manifest.csv,One row per final refit configuration.
+final_test_predictions.csv,All test scores for all successful finalists.
+final_selected_features.csv,Features selected after final full-train prescreen refit.
+final_ranking_manifest.csv,Per-finalist top-k ranking file index (k = OOF optimal k per config).
+best_final_test_top1000.csv,Top-997 for the highest-ranked notebook-03 finalist (OOF optimal k).
+pozorski_florek_poltorak_obs.txt,Submission observation indices — top-997 by OOF optimal k.
+pozorski_florek_poltorak_vars.txt,Submission variable indices for the best finalist.
+simple_ensemble_manifest.csv,"Optional rank-mean ensemble manifest, if available."
+simple_ensemble_rank_mean_test_top1000.csv,"Optional rank-mean ensemble top-997, if available."
+final_refit_comparison.csv,Final refit manifest joined to notebook-03 outer summary.
+stage_status_summary.json,Compact notebook-04 status summary.

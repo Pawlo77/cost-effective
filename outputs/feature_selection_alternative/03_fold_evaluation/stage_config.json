@@ -1,0 +1,20 @@
+{
+  "random_state": 42,
+  "max_targets": 1000,
+  "outer_folds_to_run": null,
+  "stage03_global_configs": 20,
+  "stage03_max_feature_size": 6,
+  "min_inner_fold_count_round2": 5,
+  "run_outer_refit": true,
+  "test_top_n": 1000,
+  "test_row_count": 5000,
+  "test_contact_rate": 0.2,
+  "use_rate_matched_outer_selection": true,
+  "cost_aware_max_feature_size": 6,
+  "cost_aware_fallback_min_outer_folds": 5,
+  "top_stable_configs": 10,
+  "min_outer_folds_for_stability": 5,
+  "scoring_formula": "10*TP - 5*FP - 200*n_features",
+  "selection_contract": "Uses notebook-03 alternative outer predictions, rescored at final test contact rate.",
+  "required_outer_fold_count": 5
+}

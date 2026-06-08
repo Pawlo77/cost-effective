@@ -1,0 +1,8 @@
+,value
+outer_assignment_rows,5000
+unique_outer_samples,5000
+outer_fold_count,5
+inner_outer_fold_count,5
+inner_fold_count_per_outer_min,5
+inner_fold_count_per_outer_max,5
+pipeline_recipe_rows,172704

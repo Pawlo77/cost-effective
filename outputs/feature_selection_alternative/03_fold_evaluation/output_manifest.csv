@@ -1,0 +1,15 @@
+file,meaning
+stage_config.json,Notebook-03 execution config.
+outer_evaluation_run_log.csv,Timestamped notebook-03 log.
+stage02_selected_pipeline_recipes_used.csv,Notebook-02 selected recipes consumed by outer evaluation.
+outer_fold_scores.csv,Original full-cap outer scores on untouched outer_val.
+outer_fold_predictions.csv,Sample-level outer_val predictions for audited recipes.
+outer_fold_selected_features.csv,Features selected after refitting prescreening on each outer_train.
+outer_fold_scores_rate_matched.csv,"Outer predictions rescored at final test contact rate with gross value scaled to full test population, without refitting."
+outer_config_summary_full_cap.csv,Diagnostic aggregation using the original full-cap outer scores.
+outer_config_summary.csv,"Main aggregation using rate-matched, scaled-gross outer scores."
+stable_outer_configurations_full_cap.csv,Diagnostic finalists from the old full-cap strategy.
+stable_outer_configurations.csv,Main finalists selected from rate-matched alternative outer evaluation; every row has outer_fold_count equal to the full outer-fold count.
+outer_oof_scores.csv,Pooled outer OOF scores: 5x1000 disjoint outer_val predictions concatenated and scored once at max_targets=1000 (20% contact rate). Direct unscaled analogue of Stage 2 inner-OOF pooling.
+outer_feature_frequency.csv,Feature frequency across alternative outer refits.
+stage_status_summary.json,Compact notebook-03 status summary.

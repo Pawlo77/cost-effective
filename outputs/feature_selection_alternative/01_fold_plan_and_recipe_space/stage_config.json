@@ -1,0 +1,37 @@
+{
+  "random_state": 42,
+  "outer_splits": 5,
+  "inner_splits": 5,
+  "prescreen_methods": [
+    "mutual_info",
+    "abs_corr",
+    "logistic_l1",
+    "abess_logistic",
+    "lightgbm_gain",
+    "ebm",
+    "sparse_gam_spam",
+    "lambdamart"
+  ],
+  "feature_sizes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    12,
+    15,
+    20,
+    30,
+    40,
+    50
+  ],
+  "run_xgboost": true,
+  "run_ebm": true,
+  "run_lambdamart": true,
+  "notes": "Stage 1 defines the fold plan and recipe space for the alternative feature-selection workflow; no feature selection is fitted here."
+}

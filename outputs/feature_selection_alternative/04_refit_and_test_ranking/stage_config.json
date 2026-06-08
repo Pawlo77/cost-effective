@@ -1,0 +1,8 @@
+{
+  "random_state": 42,
+  "top_n_test": 1000,
+  "top_finalists_to_refit": 5,
+  "run_simple_ensemble": true,
+  "submission_prefix": "pozorski_florek_poltorak",
+  "selection_contract": "Finalists come only from notebook 03 alternative outer evaluation."
+}

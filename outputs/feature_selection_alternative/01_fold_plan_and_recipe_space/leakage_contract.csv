@@ -1,0 +1,7 @@
+stage,allowed_data,forbidden_data
+outer_fold_creation,y_train only for stratified splitting,"no feature ranking, model choice, or score optimization"
+inner_prescreen_fit,X_inner_train and y_inner_train,"X_inner_val, y_inner_val, X_outer_val, y_outer_val"
+inner_recipe_scoring,predictions on inner_val and y_inner_val,outer_val labels or global train-wide prescreen rankings
+outer_refit,X_outer_train and y_outer_train plus recipe selected inside outer_train,X_outer_val and y_outer_val during selection or fitting
+outer_evaluation,predictions on X_outer_val and y_outer_val for final fold scoring only,using outer_val score to alter that fold's selected recipe
+final_test_ranking,all X_train/y_train for final recipe refit and X_test for scoring,"test labels, which are not available"

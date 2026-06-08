@@ -1,0 +1,53 @@
+timestamp_utc,stage,message,output_dir,clean_stage_outputs,storage_mode
+2026-06-08T09:27:50.699497+00:00,setup,initialized alternative stage-02 metrics-only outputs,outputs/feature_selection_alternative/02_inner_recipe_selection,False,metrics_only_compact_oof_blocks
+2026-06-08T09:27:54.984527+00:00,scoring_scale,wrote inner validation cost scales,25,0.8,0.8
+2026-06-08T09:28:16.895602+00:00,round1_start,starting tuning fold round 1,1,1,3200,800,0.8,3,processes
+2026-06-08T09:31:13.978593+00:00,round1_skip,round 1 scores already exist,1
+2026-06-08T09:31:14.684681+00:00,round1_skip,round 1 scores already exist,2
+2026-06-08T09:31:15.284012+00:00,round1_skip,round 1 scores already exist,3
+2026-06-08T09:31:16.003509+00:00,round1_skip,round 1 scores already exist,4
+2026-06-08T09:31:16.620286+00:00,round1_skip,round 1 scores already exist,5
+2026-06-08T09:55:35.337743+00:00,setup,initialized alternative stage-02 metrics-only outputs,outputs/feature_selection_alternative/02_inner_recipe_selection,False,metrics_only_compact_oof_blocks
+2026-06-08T09:55:38.556330+00:00,scoring_scale,wrote inner validation cost scales,25,0.8,0.8
+2026-06-08T09:55:43.308125+00:00,round1_skip,round 1 scores already exist,1
+2026-06-08T09:55:43.750419+00:00,round1_skip,round 1 scores already exist,2
+2026-06-08T09:55:44.247268+00:00,round1_skip,round 1 scores already exist,3
+2026-06-08T09:55:44.730385+00:00,round1_skip,round 1 scores already exist,4
+2026-06-08T09:55:45.239388+00:00,round1_skip,round 1 scores already exist,5
+2026-06-08T09:57:11.724601+00:00,setup,initialized alternative stage-02 metrics-only outputs,outputs/feature_selection_alternative/02_inner_recipe_selection,False,metrics_only_compact_oof_blocks
+2026-06-08T09:57:13.741911+00:00,scoring_scale,wrote inner validation cost scales,25,0.8,0.8
+2026-06-08T09:57:17.280453+00:00,round1_skip,round 1 scores already exist,1
+2026-06-08T09:57:17.753440+00:00,round1_skip,round 1 scores already exist,2
+2026-06-08T09:57:18.224671+00:00,round1_skip,round 1 scores already exist,3
+2026-06-08T09:57:18.660636+00:00,round1_skip,round 1 scores already exist,4
+2026-06-08T09:57:19.046521+00:00,round1_skip,round 1 scores already exist,5
+2026-06-08T09:57:59.602960+00:00,round2_skip,round 2 scores already exist,1
+2026-06-08T09:57:59.752514+00:00,round2_skip,round 2 scores already exist,2
+2026-06-08T09:57:59.919189+00:00,round2_skip,round 2 scores already exist,3
+2026-06-08T09:58:00.125400+00:00,round2_skip,round 2 scores already exist,4
+2026-06-08T09:58:00.312943+00:00,round2_skip,round 2 scores already exist,5
+2026-06-08T09:58:07.271185+00:00,round2_selection,selected full pipeline recipes for alternative evaluation by combined tuning-OOF score,1,10,5190.0
+2026-06-08T09:58:07.319139+00:00,round2_selection,selected full pipeline recipes for alternative evaluation by combined tuning-OOF score,2,10,4995.0
+2026-06-08T09:58:07.367554+00:00,round2_selection,selected full pipeline recipes for alternative evaluation by combined tuning-OOF score,3,10,5035.0
+2026-06-08T09:58:07.416289+00:00,round2_selection,selected full pipeline recipes for alternative evaluation by combined tuning-OOF score,4,10,5165.0
+2026-06-08T09:58:07.463675+00:00,round2_selection,selected full pipeline recipes for alternative evaluation by combined tuning-OOF score,5,10,4970.0
+2026-06-08T09:59:25.014029+00:00,setup,initialized alternative stage-02 metrics-only outputs,outputs/feature_selection_alternative/02_inner_recipe_selection,False,metrics_only_compact_oof_blocks
+2026-06-08T09:59:27.580712+00:00,scoring_scale,wrote inner validation cost scales,25,0.8,0.8
+2026-06-08T09:59:31.369002+00:00,round1_skip,round 1 scores already exist,1
+2026-06-08T09:59:31.903885+00:00,round1_skip,round 1 scores already exist,2
+2026-06-08T09:59:32.433869+00:00,round1_skip,round 1 scores already exist,3
+2026-06-08T09:59:32.948479+00:00,round1_skip,round 1 scores already exist,4
+2026-06-08T09:59:33.493744+00:00,round1_skip,round 1 scores already exist,5
+2026-06-08T09:59:34.264992+00:00,round1_recovery,round 1 scores use the older per-inner-fold format; using existing selected feature recipes for round 2,legacy_inner_fold,300
+2026-06-08T09:59:37.057553+00:00,round1_selection_recovery,loaded existing round-1 selected feature recipes,300,missing_or_legacy_round1_oof_scores
+2026-06-08T09:59:41.820293+00:00,round2_skip,round 2 scores already exist,1
+2026-06-08T09:59:41.960860+00:00,round2_skip,round 2 scores already exist,2
+2026-06-08T09:59:42.112071+00:00,round2_skip,round 2 scores already exist,3
+2026-06-08T09:59:42.288799+00:00,round2_skip,round 2 scores already exist,4
+2026-06-08T09:59:42.481939+00:00,round2_skip,round 2 scores already exist,5
+2026-06-08T09:59:48.763981+00:00,round2_selection,selected full pipeline recipes for alternative evaluation by combined tuning-OOF score,1,10,5190.0
+2026-06-08T09:59:48.825393+00:00,round2_selection,selected full pipeline recipes for alternative evaluation by combined tuning-OOF score,2,10,4995.0
+2026-06-08T09:59:48.879438+00:00,round2_selection,selected full pipeline recipes for alternative evaluation by combined tuning-OOF score,3,10,5035.0
+2026-06-08T09:59:48.935574+00:00,round2_selection,selected full pipeline recipes for alternative evaluation by combined tuning-OOF score,4,10,5165.0
+2026-06-08T09:59:48.992470+00:00,round2_selection,selected full pipeline recipes for alternative evaluation by combined tuning-OOF score,5,10,4970.0
+2026-06-08T14:32:57.949234+00:00,setup,initialized alternative stage-02 metrics-only outputs,outputs/feature_selection_alternative/02_inner_recipe_selection,False,metrics_only_compact_oof_blocks

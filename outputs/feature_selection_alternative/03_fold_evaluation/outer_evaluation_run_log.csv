@@ -1,0 +1,36 @@
+timestamp_utc,stage,message,output_dir
+2026-06-08T10:16:10.182012+00:00,setup,initialized notebook 03,outputs/feature_selection_alternative/03_fold_evaluation
+2026-06-08T10:16:15.615265+00:00,stage02_selection,built global notebook-03 candidate configs from notebook-02 round2 scores,100,20,5,6,"[1, 2, 3, 4, 5]"
+2026-06-08T10:16:30.607032+00:00,outer_refit_plan,planned incremental complete outer audit,100,0,100,100
+2026-06-08T10:24:44.981285+00:00,outer_refit,saved complete alternative outer-fold evaluation frames,True,100,100000,570,100,100,100
+2026-06-08T11:10:51.876512+00:00,setup,initialized notebook 03,outputs/feature_selection_alternative/03_fold_evaluation
+2026-06-08T11:10:55.540133+00:00,stage02_selection,built global notebook-03 candidate configs from notebook-02 round2 scores,100,20,5,6,"[1, 2, 3, 4, 5]"
+2026-06-08T11:11:00.460200+00:00,outer_refit_plan,planned incremental complete outer audit,100,100,0,0
+2026-06-08T11:11:00.479718+00:00,outer_refit_skip,all target pairs are already complete
+2026-06-08T11:11:05.017902+00:00,outer_refit,saved complete alternative outer-fold evaluation frames,True,100,100000,570,100,100,100
+2026-06-08T11:11:11.350839+00:00,aggregation,saved rate-matched population-scaled cost-aware finalists,0.19996000799840033,"{1: 200, 2: 200, 3: 200, 4: 200, 5: 200}","{1: 5.001, 2: 5.001, 3: 5.001, 4: 5.001, 5: 5.001}",20,20,10,5,6
+2026-06-08T13:42:44.379309+00:00,setup,initialized notebook 03,outputs/feature_selection_alternative/03_fold_evaluation
+2026-06-08T13:42:48.177218+00:00,stage02_selection,built global notebook-03 candidate configs from notebook-02 round2 scores,100,20,5,6,"[1, 2, 3, 4, 5]"
+2026-06-08T13:42:53.272097+00:00,outer_refit_plan,planned incremental complete outer audit,100,100,0,0
+2026-06-08T13:42:53.282438+00:00,outer_refit_skip,all target pairs are already complete
+2026-06-08T13:42:56.549825+00:00,outer_refit,saved complete alternative outer-fold evaluation frames,True,100,100000,570,100,100,100
+2026-06-08T13:43:11.264968+00:00,aggregation,saved rate-matched population-scaled cost-aware finalists,0.19996000799840033,"{1: 200, 2: 200, 3: 200, 4: 200, 5: 200}","{1: 5.001, 2: 5.001, 3: 5.001, 4: 5.001, 5: 5.001}",20,20,10,5,6
+2026-06-08T13:43:43.866203+00:00,outer_oof_pooling,computed pooled outer OOF scores (5000 samples per config at 20% contact rate),20,20,5445.0,ps_mean_0007__k_006__extra_trees_small_deep01
+2026-06-08T14:39:23.037277+00:00,setup,initialized notebook 03,outputs/feature_selection_alternative/03_fold_evaluation
+2026-06-08T14:39:27.021678+00:00,stage02_selection,built global notebook-03 candidate configs from notebook-02 round2 scores,100,20,5,8,"[1, 2, 3, 4, 5]"
+2026-06-08T14:39:46.384957+00:00,outer_refit_plan,planned incremental complete outer audit,100,60,40,40
+2026-06-08T14:41:17.749614+00:00,outer_refit,saved complete alternative outer-fold evaluation frames,True,100,100000,650,100,100,100
+2026-06-08T14:42:23.338594+00:00,outer_refit_plan,planned incremental complete outer audit,100,100,0,0
+2026-06-08T14:42:23.359459+00:00,outer_refit_skip,all target pairs are already complete
+2026-06-08T14:42:28.470378+00:00,outer_refit,saved complete alternative outer-fold evaluation frames,True,100,100000,650,100,100,100
+2026-06-08T14:42:54.495630+00:00,outer_refit_plan,planned incremental complete outer audit,100,100,0,0
+2026-06-08T14:42:54.512902+00:00,outer_refit_skip,all target pairs are already complete
+2026-06-08T14:43:00.037879+00:00,outer_refit,saved complete alternative outer-fold evaluation frames,True,100,100000,650,100,100,100
+2026-06-08T14:43:25.292455+00:00,aggregation,saved rate-matched population-scaled cost-aware finalists,0.19996000799840033,"{1: 200, 2: 200, 3: 200, 4: 200, 5: 200}","{1: 5.001, 2: 5.001, 3: 5.001, 4: 5.001, 5: 5.001}",20,20,10,5,8
+2026-06-08T14:43:48.128843+00:00,outer_oof_pooling,computed pooled outer OOF scores (5000 samples per config at 20% contact rate),20,20,5445.0,ps_mean_0007__k_006__extra_trees_small_deep01
+2026-06-08T14:44:58.630295+00:00,setup,initialized notebook 03,outputs/feature_selection_alternative/03_fold_evaluation
+2026-06-08T14:44:59.157669+00:00,stage02_selection,built global notebook-03 candidate configs from notebook-02 round2 scores,100,20,5,6,"[1, 2, 3, 4, 5]"
+2026-06-08T14:45:06.892485+00:00,outer_refit_plan,planned incremental complete outer audit,100,60,40,40
+2026-06-08T14:52:01.453387+00:00,outer_refit,saved complete alternative outer-fold evaluation frames,True,100,100000,570,100,100,100
+2026-06-08T14:53:29.775931+00:00,aggregation,saved rate-matched population-scaled cost-aware finalists,0.2,"{1: 200, 2: 200, 3: 200, 4: 200, 5: 200}","{1: 5.0, 2: 5.0, 3: 5.0, 4: 5.0, 5: 5.0}",20,20,10,5,6
+2026-06-08T14:53:37.139935+00:00,outer_oof_pooling,computed pooled outer OOF scores (5000 samples per config at 20% contact rate),20,20,5445.0,ps_mean_0007__k_006__extra_trees_small_deep01

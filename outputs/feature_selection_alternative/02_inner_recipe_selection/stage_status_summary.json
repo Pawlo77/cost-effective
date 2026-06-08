@@ -1,0 +1,21 @@
+{
+  "scoring_version": "combined_inner_oof_business_score_v1",
+  "storage_mode": "metrics_only_compact_oof_blocks_no_sample_prediction_csv",
+  "business_objective": "10*TP - 5*FP - 200*n_features",
+  "max_targets": 1000,
+  "feature_cost_reference_row_count": 1000,
+  "random_baseline_repeats": 20,
+  "run_round1_model_fits": true,
+  "run_round2_model_fits": true,
+  "round1_inner_oof_scores": {
+    "ok": 37500
+  },
+  "round1_selected_feature_rows": 300,
+  "round1_baselines": {},
+  "round2_inner_oof_scores": {
+    "ok": 12600
+  },
+  "round2_baselines": {},
+  "outer_selected_pipeline_rows": 50,
+  "sample_level_prediction_csv_written": false
+}

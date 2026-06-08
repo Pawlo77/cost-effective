@@ -55,5 +55,7 @@ def load_test_data(data_dir: Path | None = None) -> pd.DataFrame:
         header=None,
         low_memory=False,
     ).apply(pd.to_numeric, errors="coerce")
+    # drop the header row (becomes all-NaN after numeric coercion)
+    x_test = x_test.dropna(how="all").reset_index(drop=True)
     x_test.columns = [f"var_{i}" for i in range(x_test.shape[1])]
     return x_test.fillna(0.0)

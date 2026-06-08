@@ -1,0 +1,14 @@
+{
+  "finalist_rows_loaded": 5,
+  "successful_final_refits": 5,
+  "test_prediction_rows": 25005,
+  "best_recipe_config_id": "ps_mean_0007__k_006__extra_trees_small_deep03",
+  "top_n_test": 1000,
+  "top_n_submission": 997,
+  "best_submission_rows": 997,
+  "best_feature_count": 6,
+  "oof_k_used": true,
+  "obs_file": "outputs/feature_selection_alternative/04_refit_and_test_ranking/pozorski_florek_poltorak_obs.txt",
+  "vars_file": "outputs/feature_selection_alternative/04_refit_and_test_ranking/pozorski_florek_poltorak_vars.txt",
+  "ensemble_written": true
+}

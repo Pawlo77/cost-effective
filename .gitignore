@@ -1,3 +1,6 @@
+.devcontainer/
+*.tar.gz
+
 .ai/
 mlruns/
 mlruns.db

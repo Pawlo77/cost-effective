@@ -1,0 +1,36 @@
+{
+  "scoring_version": "alternative_feature_selection_rate_matched_topk_v3_scaled_gross",
+  "selection_strategy": "rate_matched_contact_rate_scaled_gross_cost_aware",
+  "test_top_n": 1000,
+  "test_row_count": 5000,
+  "test_contact_rate": 0.2,
+  "rate_matched_max_targets_by_outer": {
+    "1": 200,
+    "2": 200,
+    "3": 200,
+    "4": 200,
+    "5": 200
+  },
+  "gross_score_scale_by_outer": {
+    "1": 5.0,
+    "2": 5.0,
+    "3": 5.0,
+    "4": 5.0,
+    "5": 5.0
+  },
+  "cost_aware_max_feature_size": 6,
+  "required_outer_fold_count": 5,
+  "run_outer_refit": true,
+  "score_rows_full_cap": 100,
+  "score_rows_rate_matched": 100,
+  "ok_score_rows_rate_matched": 100,
+  "prediction_rows": 100000,
+  "selected_feature_rows": 570,
+  "outer_config_rows_full_cap": 20,
+  "outer_config_rows_rate_matched": 20,
+  "stable_config_rows": 10,
+  "best_mean_outer_business_score_rate_matched": 5450.0,
+  "best_recipe_config_id_rate_matched": "ps_mean_0007__k_006__extra_trees_small_deep03",
+  "best_outer_oof_business_score": 5445.0,
+  "best_recipe_config_id_outer_oof": "ps_mean_0007__k_006__extra_trees_small_deep01"
+}

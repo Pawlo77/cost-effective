@@ -1,0 +1,6 @@
+outer_fold,train_count,val_count,train_positive_count,val_positive_count,train_positive_rate,val_positive_rate
+1,4000,1000,1991,497,0.49775,0.497
+2,4000,1000,1991,497,0.49775,0.497
+3,4000,1000,1990,498,0.4975,0.498
+4,4000,1000,1990,498,0.4975,0.498
+5,4000,1000,1990,498,0.4975,0.498

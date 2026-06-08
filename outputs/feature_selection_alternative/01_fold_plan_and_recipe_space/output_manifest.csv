@@ -1,0 +1,13 @@
+file,meaning
+stage_config.json,Stage-one configuration.
+outer_fold_assignments.csv,One outer validation fold per sample.
+outer_fold_summary.csv,Outer fold class-balance summary.
+inner_fold_assignments.csv,Inner validation folds inside each outer train split.
+inner_fold_summary.csv,Inner fold class-balance summary.
+leakage_contract.csv,Allowed and forbidden data access per stage.
+prescreen_recipe_space.csv,Fold-local prescreening recipe declarations.
+feature_size_grid.csv,Top-k feature-size declarations.
+model_spec_space.csv,Model/HPO specification declarations.
+pipeline_recipe_space.csv,Declarative full pipeline recipe space.
+pipeline_recipe_space_summary.csv,Recipe-count summary by model family and feature size.
+experiment_log.csv,Empty stable log table for later stages.

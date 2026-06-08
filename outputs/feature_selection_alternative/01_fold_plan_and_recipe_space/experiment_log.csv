@@ -1,0 +1,1 @@
+event_id,stage,outer_fold,inner_fold,recipe_id,prescreen_recipe_id,feature_size,model_spec_id,model_family,status,error,selected_features,inner_score,outer_score,started_at,finished_at,duration_seconds,notes
