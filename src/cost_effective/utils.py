@@ -137,11 +137,11 @@ def write_submission_files(
     vars_path = outputs_path / f"{submission_prefix}_vars.txt"
 
     obs_path.write_text(
-        "\n".join(str(int(i)) for i in customer_indices) + "\n",
+        "\n".join(str(int(i) + 1) for i in customer_indices) + "\n",
         encoding="utf-8",
     )
     vars_path.write_text(
-        "\n".join(str(var_name_to_index(name)) for name in feature_names) + "\n",
+        "\n".join(str(var_name_to_index(name) + 1) for name in feature_names) + "\n",
         encoding="utf-8",
     )
     return obs_path, vars_path

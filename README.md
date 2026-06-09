@@ -111,6 +111,8 @@ outputs/feature_selection_alternative/
   final_submission/                  output of final_submission_pipeline.ipynb
 ```
 
+Submission files use **1-based indexing**: `_obs.txt` lists row numbers of `X_test` starting from 1 (first row = 1); `_vars.txt` lists variable numbers matching V1–V500 column names.
+
 ---
 
 ## Contributing

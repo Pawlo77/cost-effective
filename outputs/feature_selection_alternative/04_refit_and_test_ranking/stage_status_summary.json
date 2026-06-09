@@ -1,7 +1,7 @@
 {
   "finalist_rows_loaded": 5,
   "successful_final_refits": 5,
-  "test_prediction_rows": 25005,
+  "test_prediction_rows": 25000,
   "best_recipe_config_id": "ps_mean_0007__k_006__extra_trees_small_deep03",
   "top_n_test": 1000,
   "top_n_submission": 997,

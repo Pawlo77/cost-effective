@@ -56,7 +56,7 @@
   }%
 }
 
-\graphicspath{{../notebooks/plots/}}
+\graphicspath{{../notebooks/plots/}{../report/figures/}}
 
 \newcommand{\slidecomment}[1]{
     \vspace{0.3em}
@@ -96,30 +96,29 @@
 \end{frame}
 
 % ---------------------------------------------------------------------------
-\begin{frame}{Pipeline}
-    \begin{enumerate}
-        \item \textbf{Feature selection} --- 500 $\to$ ranked \texttt{top\_01}--\texttt{top\_26}
-        \item \textbf{Baselines} --- no-skill floors, feature-tax demo
-        \item \textbf{Modelling} --- five targeting strategies
-        \item \textbf{Comparison} --- OOF business score across approaches
-    \end{enumerate}
-
-    \vspace{0.5em}
-    \textbf{Strategies:}
+\begin{frame}{Two pipelines}
     \begin{columns}[T,onlytextwidth]
         \column{0.48\textwidth}
-        \small
-        \begin{itemize}
-            \item Top-$k$ profit curve
-            \item EV profit targeting
-            \item Rank fusion committee
-        \end{itemize}
+        \textbf{Classic pipeline}
+        \begin{enumerate}\small
+            \item Feature selection (500 $\to$ 26)
+            \item Baselines
+            \item Five modelling strategies
+            \item OOF comparison
+        \end{enumerate}
+        \vspace{0.3em}
+        \small Strategies: top-$k$ curve, EV targeting, rank fusion, cluster split, segment-aware
+
         \column{0.48\textwidth}
-        \small
-        \begin{itemize}
-            \item Cluster split (KMeans)
-            \item Segment-aware (GMM)
-        \end{itemize}
+        \textbf{Alternative: nested CV}
+        \begin{enumerate}\small
+            \item 257 prescreening strategies
+            \item Inner-CV two-round search (42 models)
+            \item Outer eval (rate-matched, 2 tracks)
+            \item Final refit + test scoring
+        \end{enumerate}
+        \vspace{0.3em}
+        \small Strict data-access contract; joint feature--model search
     \end{columns}
 \end{frame}
 
@@ -144,11 +143,11 @@
             \toprule
             Rank & Feature \\
             \midrule
-            1 & \texttt{var\_389} \\
-            2 & \texttt{var\_308} \\
-            3 & \texttt{var\_93} \\
-            4 & \texttt{var\_87} \\
-            5 & \texttt{var\_254} \\
+            1 & V390 \\
+            2 & V309 \\
+            3 & V94 \\
+            4 & V88 \\
+            5 & V255 \\
             \bottomrule
         \end{tabular}
         \column{0.54\textwidth}
@@ -183,7 +182,7 @@
         Prior / uniform dummy & 0 & 2\,475 & 0.666 \\
         Stratified dummy      & 0 & 2\,474 & 0.665 \\
         Random ranker (mean)  & 0 & 2\,475 & 0.665 \\
-        Logistic (\texttt{var\_389}) & 1 & 2\,304 & 0.668 \\
+        Logistic (V390) & 1 & 2\,304 & 0.668 \\
         Logistic (500 feat.)  & 500 & $-97\,493$ & 0.668 \\
         \bottomrule
     \end{tabular}
@@ -258,13 +257,186 @@
 \end{frame}
 
 % ---------------------------------------------------------------------------
-\begin{frame}{Conclusions}
+\begin{frame}{Alternative approach: why nested CV?}
+    \textbf{Classic pipeline result:} best OOF~3\,380 (segment targeting, 3 features).
+
+    \vspace{0.5em}
+    \textbf{Limitations:}
     \begin{itemize}
-        \item \textbf{Difficult/noisy data} --- model on entire dataset did not improve F1 (PCA analysis), random .
-        \item \textbf{Feature tax dominates} --- \texttt{var\_389} alone wins CV; more vars $\downarrow$ business score
-        \item \textbf{Local rankers help} --- cluster split (3\,280) $\to$ segment targeting (3\,380)
+        \item prescreening fitted once on all training data $\to$ leaks fold info
+        \item feature and model selection done separately, not jointly
     \end{itemize}
 
+    \vspace{0.5em}
+    \textbf{Solution --- nested $5 \times 5$ CV:}
+    \begin{itemize}
+        \item outer: 5 folds (4\,000 train / 1\,000 val)
+        \item inner: 5 folds (3\,200 train / 800 val)
+        \item all prescreening refitted from scratch inside each outer fold
+        \item joint search over \emph{prescreening strategy} + \emph{model spec}
+    \end{itemize}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Prescreening: 257 strategies}
+    \textbf{8 ranking methods} across 3 families:
+    \begin{columns}[T,onlytextwidth]
+        \column{0.32\textwidth}
+        \small\textit{Filter}
+        \begin{itemize}\footnotesize
+            \item Mutual information
+            \item Pearson $|r|$
+        \end{itemize}
+        \column{0.32\textwidth}
+        \small\textit{Embedded}
+        \begin{itemize}\footnotesize
+            \item $\ell_1$ logistic
+            \item ABESS
+        \end{itemize}
+        \column{0.32\textwidth}
+        \small\textit{Model-based}
+        \begin{itemize}\footnotesize
+            \item LightGBM gain
+            \item EBM
+            \item SPAM (sparse GAM)
+            \item LambdaMART
+        \end{itemize}
+    \end{columns}
+
+    \vspace{0.6em}
+    \textbf{Ensemble rank score} per feature $i$ under method $j$:
+    \[
+        r_i = 1 - \frac{\text{rank}(s_i)-1}{p-1}, \qquad
+        \bar{r}_i = \frac{1}{m}\sum_{j=1}^{m} r_i^{(j)}
+    \]
+
+    \vspace{0.3em}
+    All 255 non-empty subsets $+$ 2 adaptive $=$ \textbf{257 strategies}\\
+    $\times$ 16 sizes $k \in \{1,\ldots,50\}$ $=$ \textbf{4\,112 (strategies, $k$) pairs}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Inner-CV: two-round selection}
+    \textbf{Round 1 --- feature screening} (5 models):
+    \begin{itemize}
+        \item top-300 feature sets per inner fold evaluated on 5 screening classifiers
+        \item top-\textbf{60} feature strategies per outer fold advance
+    \end{itemize}
+
+    \vspace{0.4em}
+    \textbf{Round 2 --- full model grid} (42 configurations):
+    \begin{itemize}
+        \item 60 feature strategies $\times$ 42 models across 7 families
+        \item top-\textbf{20} globally selected once for all outer folds
+    \end{itemize}
+
+    \vspace{0.4em}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Outer evaluation}
+    \textbf{Rate-matched scoring:}
+    \begin{itemize}
+        \item top-200 predictions per fold (= 20\% of 1\,000)
+        \item score scaled $\times 5$ $\to$ 5\,000-obs equivalent
+    \end{itemize}
+
+    \vspace{0.4em}
+    \textbf{Two parallel tracks:}
+    \begin{columns}[T,onlytextwidth]
+        \column{0.48\textwidth}
+        \textbf{Per-fold track}
+        \begin{itemize}\small
+            \item 5 comparable scaled scores
+            \item mean $\pm$ std over folds
+        \end{itemize}
+        \column{0.48\textwidth}
+        \textbf{Pooled OOF track}
+        \begin{itemize}\small
+            \item 5\,000 disjoint predictions
+            \item single deployment estimate
+        \end{itemize}
+    \end{columns}
+
+    \vspace{0.5em}
+    Top-10 configs by mean per-fold score $\to$ top-5 refitted on full training set and scored on test.
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Nested CV results: top-5 configurations}
+    \centering
+    \footnotesize
+    \begin{tabular}{lrrrr}
+        \toprule
+        Model & $k$ & Mean & Std & OOF \\
+        \midrule
+        SPAM + ET depth=5, leaf=16, n=400 & 6 & \textbf{5\,450} & 130 & 5\,425 \\
+        SPAM + ET depth=5, leaf=20, n=500 & 6 & 5\,400 &  64 & 5\,295 \\
+        SPAM + ET depth=6, leaf=20, n=400 & 6 & 5\,355 & 151 & 5\,410 \\
+        SPAM + ET depth=4, leaf=12, n=320 & 6 & 5\,320 & 309 & 5\,395 \\
+        SPAM + ET depth=3, leaf=8,  n=320 & 6 & 5\,310 & 257 & 5\,445 \\
+        \bottomrule
+    \end{tabular}
+
+    \vspace{0.6em}
+    \begin{columns}[T,onlytextwidth]
+        \column{0.55\textwidth}
+        \small
+        \textbf{Winner:} SPAM prescreener, $k{=}6$\\
+        Features: V176, V191, V215, V342, V380, V483\\
+        ExtraTrees (depth=5, leaf=16, 400 trees, balanced)
+        \column{0.42\textwidth}
+        \small
+        \textbf{vs.\ classic best:}\\
+        3\,380 $\to$ \textbf{5\,425} \quad (\textcolor{highlight}{$+$61\%})
+    \end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Nested CV results: business score overview}
+    \begin{center}
+        \includegraphics[width=0.92\textwidth]{business_score_bar.png}
+    \end{center}
+    \slidecomment{Per-fold scores rescaled to 5\,000-obs equivalent. Pooled OOF (5\,425) serves as the deployment estimate.}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Score distributions across evaluation scenarios}
+    \begin{center}
+        \includegraphics[width=0.75\textwidth]{score_boxplots.png}
+    \end{center}
+    \slidecomment{Score distributions at $\approx$20\% contact rate are consistent across per-fold OOF, pooled OOF, and test --- no sign of overfitting or fold-specific drift.}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Nested CV diagnostics}
+    \begin{columns}[T,onlytextwidth]
+        \column{0.50\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{cumulative_fp_rate.png}
+        \column{0.50\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{precision_bands.png}
+    \end{columns}
+    \slidecomment{FP accumulates gradually (left); precision is consistent across folds and degrades near the selection boundary (right).}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Conclusions}
+    \textbf{Classic pipeline:}
+    \begin{itemize}
+        \item Feature tax dominates --- V390 alone wins; more variables $\downarrow$ business score
+        \item Local rankers help --- cluster split (3\,280) $\to$ segment-aware (3\,380)
+        \item Noisy data: PCA analysis shows more features may introduce noise
+    \end{itemize}
+
+    \vspace{0.5em}
+    \textbf{Nested CV alternative:}
+    \begin{itemize}
+        \item Joint search: \textbf{5\,425 OOF} \textcolor{highlight}{($+$61\% vs.\ classic)}
+        \item All top-10 configs use ExtraTrees; SPAM prescreener dominates
+        \item Low-variance runner-up ($\pm$64) may suggest shallower trees trade mean for stability
+    \end{itemize}
 \end{frame}
 
 % ---------------------------------------------------------------------------

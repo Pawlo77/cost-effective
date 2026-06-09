@@ -8,7 +8,7 @@
 \usepackage{booktabs}
 \usepackage{dblfloatfix}
 
-\graphicspath{{../notebooks/plots/}}
+\graphicspath{{../notebooks/plots/}{./}}
 
 \title{Cost-Effective Predictive Modeling for Customer Targeting}
 
@@ -20,41 +20,55 @@
     $^1$ Warsaw University of Technology, Poland
 }
 
-\email{\{pawel.pozorski, pawel.florek, jakub.poltorak\}.stud@pw.edu.pl}
+\email{\{pawel.pozorski, pawel.florek, jakub.poltorak2\}.stud@pw.edu.pl}
 
 \keywords{feature selection, profit maximization, customer targeting, ensemble methods}
 
 \begin{document}
 
 \maketitle
+\pagestyle{plain}
+\thispagestyle{plain}
 
 \begin{abstract}
-    Abstract
+We address profit-oriented customer targeting on a binary dataset of 5\,000 observations and 500 anonymous features.
+The business score $10\,\mathrm{TP} - 5\,\mathrm{FP} - 200\,N_{\mathrm{vars}}$ couples predictive performance with model complexity,
+penalising both false positives and the number of selected features.
+We compare a classic cross-validation pipeline---exploring sequential feature selection and five modelling strategies---with a nested cross-validation alternative that evaluates over 257 prescreening strategies and 42 model configurations.
+The nested approach improves the pooled out-of-fold business score from 3\,380 to 5\,425, a 61\% gain, using six features selected by a sparse GAM prescreener paired with a shallow ExtraTrees classifier.
 \end{abstract}
 
 \section{Introduction}
+\label{sec:intro}
+
+Cost-aware customer targeting optimises a profit function rather than a standard classification metric.
+When each additional declared feature carries a direct penalty, the feature set size becomes a first-class model parameter, and discriminative power alone no longer determines the optimal setup.
+This creates a setting where compact, well-calibrated rankers should outperform richer models that would dominate on ROC-AUC or F1.
+
+We study this problem on a 5\,000-observation binary dataset with 500 anonymous features and a score
+\[
+\text{Score} = 10\,\mathrm{TP} - 5\,\mathrm{FP} - 200\,N_{\mathrm{vars}},
+\]
+where each extra variable requires 20 additional true positives to break even.
+Two approaches are developed. Section~2 describes the initial pipeline: sequential dimensionality reduction and cross-validated comparison of five modelling strategies (Section~\ref{sec:featsel}--\ref{sec:segment}).
+Section~3 presents the nested-CV alternative (Section~\ref{sec:nested}), which refits all prescreening estimators inside each outer fold and runs a two-round grid search over the joint feature--model space.
+Results are compared in Section~4.
 
 \section{Methodology}
+
+This section describes the base pipeline: a conventional cross-validation workflow used as the primary modelling framework and as a performance reference.
+An alternative based on nested cross-validation, with a joint feature--model search is presented in Section~\ref{sec:nested}.
 
 \subsection{Problem formulation and evaluation}
 \label{sec:task}
 
-We address cost-aware customer targeting on a labelled training set $(X, y)$, where $X \in \mathbb{R}^{5000 \times 500}$ and $y$ is a roughly balanced binary response.
-Each customer is assigned an acceptance probability $\hat{p} = P(y{=}1 \mid x)$; the campaign contacts the top $k \leq 1000$ customers by decreasing $\hat{p}$.
-Optimisation targets a profit-oriented score rather than classification accuracy:
-\[
-\text{Score} = 10\,\mathrm{TP} - 5\,\mathrm{FP} - 200\,N_{\mathrm{vars}},
-\]
-where $N_{\mathrm{vars}}$ denotes the number of features declared in the submission.
-The linear penalty on $N_{\mathrm{vars}}$ couples predictive performance with model parsimony: each additional variable requires twenty extra true positives to break even.
+The training set $(X, y)$ comprises $X \in \mathbb{R}^{5000 \times 500}$ with a roughly balanced binary response.
+Each customer is ranked by an estimated acceptance probability $\hat{p} = P(y{=}1 \mid x)$; the campaign contacts the top $k \leq 1000$ by decreasing $\hat{p}$.
+Under the business score introduced in Section~\ref{sec:intro}, a contact is profitable in expectation iff $\hat{p} > 1/3$, since $E[\text{contact}] = 10p - 5(1-p) > 0$.
 
-All design choices---feature subsets, model hyperparameters, and the contact count $k$---are estimated on training data using 5-fold stratified cross-validation.
-The business scorer ranks validation-fold probabilities, computes
-$\mathrm{Score}_k = 10\,\mathrm{TP}_k - 5\,\mathrm{FP}_k - 200\,N_{\mathrm{vars}}$ for $k = 1, \ldots, 1000$,
-and selects the maximising $k$.
-Out-of-fold (OOF) predictions aggregate held-out fold scores and are used for contact-set size selection, thereby avoiding optimistic bias from in-sample fitting.
+All design choices---feature subsets, model hyperparameters, and the contact count $k$---are tuned via 5-fold stratified cross-validation.
+The scorer evaluates held-out fold probabilities at each $k = 1, \ldots, 1000$ and retains the maximiser; out-of-fold (OOF) aggregation avoids in-sample optimism.
 Models are subsequently refit on the full training set prior to test-time ranking.
-Under the contact cost structure, a customer is profitable in expectation iff $\hat{p} > 1/3$, since $E[\text{contact}] = 15p - 5$.
 
 \subsection{Feature selection}
 \label{sec:featsel}
@@ -79,7 +93,7 @@ Reference models provide lower bounds on performance and verify the implementati
 Dummy classifiers are fit on a zero-dimensional feature matrix ($n_{\mathrm{features}} = 0$).
 The \texttt{prior} and \texttt{uniform} strategies produce constant acceptance probabilities; the \texttt{stratified} strategy yields row-wise random one-hot pseudo-probabilities.
 A \texttt{RandomScoreClassifier} assigns independent $\mathrm{Uniform}(0,1)$ scores across five random seeds.
-Learned references comprise logistic regression on the highest-correlation univariate predictor (\texttt{var\_389}) and on the full 500-dimensional input, the latter illustrating the effect of the feature penalty.
+Learned references comprise logistic regression on the highest-correlation univariate predictor (V390) and on the full 500-dimensional input, the latter illustrating the effect of the feature penalty.
 Supplementary experiments compare prefix subsets of ranked raw features with an equal number of PCA components, evaluated by top-$k$ F1 and ROC-AUC without the variable-cost term.
 
 \subsection{Top-$k$ profit curve}
@@ -123,12 +137,121 @@ In each fold, a GMM with $K{=}5$ components is fit to scaled \texttt{top\_10} fe
 Variables used for segmentation are treated as latent and are excluded from the submission, which declares three features.
 Pooled OOF probabilities are ranked and $k$ is chosen by the profit-curve criterion of Section~\ref{sec:topk}.
 
+\section{Alternative Approach --- Nested CV Methodology}
+\label{sec:nested}
+
+After achieving unsatisfying results in the evaluation of basic experiments,
+the decision to reorganise and change the policy of testing different setups was made.
+The main idea was to apply the nested cross-validation methodology alongside multi-stage
+feature and model selection. The whole procedure was divided into a few research phases
+so as to ensure the final configuration is stable and robust in terms of the considered business goal.
+This included: prescreening filtering, inner-CV setup selection, outer evaluation, and final refit.
+All those stages are described in detail in the further subsections.
+
+\subsection{Prescreening filtering}
+\label{sec:prescreening}
+
+Before fitting any classifier, a prescreening step reduces the initial 500-variable space to a smaller candidate set of $k$ features.
+Eight ranking methods were considered, spanning three families: filter methods relying on
+univariate statistics, embedded methods that derive importance from a fitted model, and
+model-based methods that rank features as part of a more expressive learning procedure.
+Specifically, mutual information \cite{peng2005feature} and absolute Pearson correlation
+\cite{guyon2003introduction} serve as filter baselines, while $\ell_1$-penalised logistic
+regression \cite{tibshirani1996lasso} and adaptive best-subset selection
+\cite{zhu2022abess} serve as embedded selectors. Finally, LightGBM gain importance
+\cite{ke2017lightgbm}, an Explainable Boosting Machine \cite{lou2012intelligible},
+a sparse GAM fitted via the SPAM coordinate-descent algorithm \cite{ravikumar2009spam},
+and a LambdaMART ranker \cite{burges2010lambdamart} represent model-based methods.
+
+To avoid committing to a single ranking signal, all non-empty subsets of the eight methods
+were enumerated, resulting in 255 combination strategies. Since each method produces
+different raw scores, the results are transformed to a normalised rank score in $[0,1]$:
+\[
+r_i = 1 - \frac{\text{rank}(s_i) - 1}{p - 1},
+\]
+where $r_i$ is the rank score of feature $i$, $\text{rank}(s_i)$ is its position in the
+descending ordering, and $p$ is the total number of variables.
+
+Within each multi-method strategy, the individual rank scores are aggregated into a single
+ensemble score per feature by taking their arithmetic mean:
+\[
+\bar{r}_i = \frac{1}{m} \sum_{j=1}^{m} r_i^{(j)},
+\]
+where $m$ is the number of methods in the strategy and $r_i^{(j)}$ is the rank score of
+feature $i$ under method $j$. Features are sorted in descending order of $\bar{r}_i$ to
+produce the final ranking; for a single-method strategy $\bar{r}_i$ reduces to $r_i$.
+
+Two additional adaptive strategies that weight methods by their training-set score are also
+included, bringing the total to 257 prescreen strategies.
+Each approach was further crossed with a grid of candidate set sizes
+$k \in \{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 30, 40, 50\}$,
+yielding $257 \times 16 = 4\,112$ (recipe, $k$) pairs.
+
+\subsection{Inner-CV setup selection}
+\label{sec:inner}
+
+The nested CV uses 5 outer folds and 5 inner folds. The outer split contains 4\,000 training
+observations and 1\,000 validation points; the inner split uses 3\,200 training and 800
+validation samples.
+All prescreening methods are fitted from scratch on each inner training partition, ensuring
+no label information leaks across folds.
+This produces a fold-specific feature ranking, from which the 4\,112 (recipe, $k$) pairs
+are derived. After deduplication of identical feature sets, the top 300 are retained per
+inner fold --- ranked by the mean ensemble score of the selected features --- and passed to
+the model evaluation stage.
+
+The inner-CV selection proceeds in two rounds designed to progressively narrow the search space.
+
+\subsubsection{Round 1 - feature-model strategy screening}
+
+In Round 1, the 300 feature candidate sets are evaluated using a small set of five screening
+classifiers (Table~\ref{tab:round1_models} in Appendix~\ref{app:model_grid}).
+Each model is trained on the inner training partition and evaluated on the inner validation
+set. The obtained score is scaled by $800/1000 = 0.8$ to be comparable with
+the outer-fold scale. Those results are averaged across inner folds. The top-60 feature-model strategies
+per outer fold --- ranked by mean inner-fold business score --- advance to the next stage.
+
+\subsubsection{Round 2 --- full model grid}
+
+Round 2 evaluates the 60 surviving feature-model strategies against the full model specification grid
+of 42 configurations, considering seven families: ExtraTrees (8 variants), RandomForest
+(6 variants), LightGBM (8 variants), XGBoost (8 variants), Elastic-Net logistic
+regression (6 variants), Explainable Boosting Machine (3 variants), and LambdaMART
+(3 variants). Each variant explores a different point in the regularisation--capacity trade-off within its
+family. The tested full hyperparameter grid is listed in Appendix~\ref{app:model_grid}.
+The procedure produces $2\,580$ pipeline candidates per outer fold.
+The top-20 pipelines per external fold, ranked by mean inner-fold business score, are selected
+as finalists and passed to the next stage of evaluation.
+
+\subsection{Outer evaluation}
+\label{sec:outer}
+
+Rather than selecting finalists independently per outer fold, the 20 candidates for further
+evaluation are chosen globally - scores from Round~2 are aggregated and the top-20 pipelines by mean inner score across different folds --- filtered to at most 6
+features --- are selected once and evaluated on every external fold.
+
+Each of the 20 candidates is refitted on the outer training partition
+and scored on the outer validation set.
+To ensure the evaluation is representative of the final deployment setting, a
+\emph{rate-matched} strategy is applied. Only the top-200 predictions are scored
+and the result is scaled by 5 to a 5\,000-observation equivalent.
+
+Evaluation is carried out along two parallel tracks.
+The \emph{per-fold track} yields five comparable scaled scores whose mean and standard
+deviation characterise configuration consistency across data splits.
+The \emph{pooled track} concatenates held-out predictions from all 5 outer folds into a
+single 5\,000-observation OOF set and rescores globally, providing a single deployment
+estimate.
+The top-10 configurations by mean per-fold score are carried forward to the final refit
+stage. Five best of them are refitted on the full training set.
+
 \section{Results}
+\label{sec:results}
 
 \subsection{Feature selection}
 \label{res:featsel}
 
-Drop-column ranking places \texttt{var\_389} first (Table~\ref{tab:topfeat}).
+Drop-column ranking places V390 first (Table~\ref{tab:topfeat}).
 The penalised cross-validated business score is maximised by \texttt{top\_01} (2\,301) and decreases monotonically with subset cardinality (\texttt{top\_26}: $-2\,684$), whereas ROC-AUC continues to increase (Table~\ref{tab:featsets}), indicating a divergence between discrimination and profit under the feature penalty.
 
 \begin{table}[t]
@@ -140,11 +263,11 @@ The penalised cross-validated business score is maximised by \texttt{top\_01} (2
         \toprule
         Rank & Feature \\
         \midrule
-        1 & \texttt{var\_389} \\
-        2 & \texttt{var\_308} \\
-        3 & \texttt{var\_93} \\
-        4 & \texttt{var\_87} \\
-        5 & \texttt{var\_254} \\
+        1 & V390 \\
+        2 & V309 \\
+        3 & V94 \\
+        4 & V88 \\
+        5 & V255 \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -176,7 +299,7 @@ The penalised cross-validated business score is maximised by \texttt{top\_01} (2
 
 Table~\ref{tab:baselines} summarises reference scores under 5-fold cross-validation.
 Dummy classifiers without declared features score approximately 2\,475 at $k{=}1000$, consistent with the class prior under a balanced sample.
-Logistic regression on \texttt{var\_389} attains 2\,301 and therefore falls below the no-skill floor once the single-feature penalty is applied.
+Logistic regression on V390 attains 2\,301 and therefore falls below the no-skill floor once the single-feature penalty is applied.
 With all 500 variables declared, the best-tuned logistic model yields $-97\,493$ despite F1~$\approx 0.668$; the corresponding OOF profit curve is shown in Appendix~\ref{fig:baseline}.
 
 \begin{table}[t]
@@ -191,7 +314,7 @@ With all 500 variables declared, the best-tuned logistic model yields $-97\,493$
         Prior / uniform dummy & 0 & 2\,475 & 0.666 \\
         Stratified dummy      & 0 & 2\,474 & 0.665 \\
         Random ranker (mean)  & 0 & 2\,475 & 0.665 \\
-        Logistic (\texttt{var\_389}) & 1 & 2\,301 & 0.668 \\
+        Logistic (V390) & 1 & 2\,301 & 0.668 \\
         Logistic (500 feat.)  & 500 & $-97\,493$ & 0.668 \\
         \bottomrule
     \end{tabular}
@@ -226,7 +349,7 @@ This might indicate that more features introduce noise.
 \subsection{Top-$k$ profit curve}
 \label{res:topk}
 
-Among the candidate model families, logistic regression on \texttt{var\_389} achieves the highest cross-validated business score (2\,301; $C{=}0.001$ after hyperparameter tuning).
+Among the candidate model families, logistic regression on V390 achieves the highest cross-validated business score (2\,301; $C{=}0.001$ after hyperparameter tuning).
 The OOF profit curve peaks at $k{=}997$ with score 3\,290 (565~TP, 432~FP; Table~\ref{tab:oof}, Appendix~\ref{fig:topk}).
 Tree-based models and enlarged feature subsets fail to improve the penalised objective.
 
@@ -280,8 +403,6 @@ Relative to cluster split, the confusion counts are marginally less favourable, 
 \subsection{Approach comparison}
 \label{res:compare}
 
-
-
 Table~\ref{tab:oof} and Figure~\ref{fig:methods} aggregate performance across the five modelling strategies.
 Segment-aware targeting occupies the first rank; rank fusion occupies the last.
 
@@ -303,13 +424,70 @@ Segment-aware targeting occupies the first rank; rank fusion occupies the last.
     \end{tabular}
 \end{table}
 
-\section{Conclusions}
+\subsection{Nested-CV alternative}
+\label{res:nested}
 
-The experiments indicate that profit-aligned feature selection is a prerequisite for competitive performance: \texttt{var\_389} dominates Stage-3 subsets, and additional variables reduce the business score despite gains in ROC-AUC.
-Segment-aware targeting achieves the most favourable balance between OOF profit (3\,380) and feature parsimony (three variables). More features means more penalty, which degrades the performance of the committee, but might also introduce more noise (PCA analysis) as F1 did not improve.
+All 20 globally-selected candidate pipelines were consistently evaluated across all 5 outer
+folds. The top-10 by mean rate-matched gross score all use ExtraTrees classifiers, with
+sparse GAM SPAM (5 configs, $k{=}6$) and LightGBM gain (3 configs, $k{=}6$) as the
+dominant prescreeners; the remaining two combine both methods ($k{=}5$).
+Four variables --- V255, V380, V176, V342 --- appear across all 5 outer folds in every
+finalist pipeline, confirming a stable and compact signal set.
+
+The winning configuration uses the sparse GAM SPAM prescreener with $k{=}6$
+variables (V176, V191, V215, V342, V380, V483) and ExtraTrees (depth=5,
+min\_samples\_leaf=16, 400 trees, balanced).
+It achieves a mean per-fold gross score of 5\,450 ($\pm$130) and a pooled OOF score of
+5\,425 --- a 61\% improvement over the best classic-pipeline result of 3\,380.
+The second-ranked configuration (same prescreener, shallower tree) achieves a slightly
+lower mean (5\,400) but substantially lower variance ($\pm$64), suggesting that model
+depth trades mean performance for stability.
+Table~\ref{tab:nested_top} summarises the top-5 configurations.
+Figure~\ref{fig:biz_bar} shows business scores across all evaluation scenarios; further
+diagnostics appear in Appendix~\ref{app:nested_figs}.
+
+\begin{table}[H]
+\centering
+\caption{Top-5 nested-CV configurations by mean outer gross score.}
+\label{tab:nested_top}
+\footnotesize
+\begin{tabularx}{\columnwidth}{lXrrrr}
+\toprule
+Prescreener & Model & $k$ & Mean & Std & OOF \\
+\midrule
+SPAM & ET depth=5, leaf=16, trees=400 & 6 & \textbf{5\,450} & 130 & 5\,425 \\
+SPAM & ET depth=5, leaf=20, trees=500 & 6 & 5\,400 &  64 & 5\,295 \\
+SPAM & ET depth=6, leaf=20, trees=400 & 6 & 5\,355 & 151 & 5\,410 \\
+SPAM & ET depth=4, leaf=12, trees=320 & 6 & 5\,320 & 309 & 5\,395 \\
+SPAM & ET depth=3, leaf=8,  trees=320 & 6 & 5\,310 & 257 & 5\,445 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{figures/business_score_bar.png}
+\caption{Business scores across evaluation scenarios. Per-fold scores are rescaled to the
+5\,000-observation equivalent.}
+\label{fig:biz_bar}
+\end{figure}
+
+\section{Conclusions}
+\label{sec:conclusions}
+
+The experiments demonstrate that profit-aligned evaluation substantially changes which features and models are competitive.
+In the classic pipeline, a single dominant variable (V390) maximises the penalised cross-validated score; additional features reduce the business objective despite improving ROC-AUC, consistent with the high cost of each extra predictor.
+Segment-aware targeting achieves the best classic-pipeline result (OOF 3\,380, three features); rank fusion ranks last despite its higher true-positive count, owing to the eight-feature penalty.
+
+The nested cross-validation alternative lifts the pooled OOF score to 5\,425 by enforcing a jointly searching over 257 prescreening recipes and 42 model configurations.
+The winning configuration---six features selected by a sparse GAM prescreener with a shallow ExtraTrees classifier---represents a 61\% improvement over the classic pipeline.
+The low variance of the second-ranked configuration ($\pm$64 vs.\ $\pm$130 for the winner) suggests that shallower trees trade marginal mean performance for greater fold-to-fold consistency, which may be preferable in deployment.
 
 \section{AI Disclosure}
 This report was edited with AI assistance, to improve clarity, consistency, and formatting. Part of the docstrings, some phrasing and code refactoring or debugging were refined using AI tools, but all scientific decisions and interpretations are the authors' own. The core content, experimental design, and analysis were developed by the authors.
+
+\bibliographystyle{IEEEtran}
+\bibliography{mybib}
 
 \newpage
 \appendix
@@ -326,7 +504,7 @@ This report was edited with AI assistance, to improve clarity, consistency, and 
 \begin{figure}[h]
     \centering
     \includegraphics[width=\linewidth]{topk_profit_curve.png}
-    \caption{Top-$k$ profit curve: logistic regression on \texttt{var\_389} ($k{=}997$, OOF 3\,290).}
+    \caption{Top-$k$ profit curve: logistic regression on V390 ($k{=}997$, OOF 3\,290).}
     \label{fig:topk}
 \end{figure}
 
@@ -366,5 +544,144 @@ This report was edited with AI assistance, to improve clarity, consistency, and 
     \caption{Cluster split: per-cluster positive-rate profiles.}
     \label{fig:cluster_y}
 \end{figure}
+
+\section{Nested-CV evaluation diagnostics}
+\label{app:nested_figs}
+
+Figure~\ref{fig:boxplots} shows the distribution of per-fold gross scores across all 20
+evaluated configurations; the winning pipeline exhibits both high mean and moderate spread.
+Figure~\ref{fig:cumfp} plots the cumulative false-positive rate through each score band,
+illustrating how quickly FP accumulates as the selection threshold is lowered.
+Figure~\ref{fig:precision} reports precision per score band across all outer folds,
+confirming that ranking quality is consistent across data splits and degrades gradually
+toward the contact boundary.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\linewidth]{figures/score_boxplots.png}
+    \caption{Score distributions across evaluation scenarios.}
+    \label{fig:boxplots}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\linewidth]{figures/cumulative_fp_rate.png}
+    \caption{Cumulative FP rate by score band.}
+    \label{fig:cumfp}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\linewidth]{figures/precision_bands.png}
+    \caption{Precision per score band across outer folds.}
+    \label{fig:precision}
+\end{figure}
+
+\section{Full model specification grid}
+\label{app:model_grid}
+
+Table~\ref{tab:round1_models} lists the five screening classifiers used in Round~1.
+Tables~\ref{tab:et_specs}--\ref{tab:lmart_specs} list all 42 model configurations used in Round~2.
+
+\begin{table}[H]
+\centering
+\caption{Round 1 screening model configurations.}
+\label{tab:round1_models}
+\begin{tabularx}{\linewidth}{lXl}
+\toprule
+Model & Key hyperparameters & Family \\
+\midrule
+ExtraTrees~\cite{geurts2006extratrees}         & depth=4, min\_leaf=12, trees=320           & Bagging  \\
+RandomForest~\cite{breiman2001randomforests}   & depth=5, min\_leaf=16, trees=400           & Bagging  \\
+LightGBM~\cite{ke2017lightgbm}                & lr=0.035, leaves=15, trees=260             & Boosting \\
+XGBoost~\cite{chen2016xgboost}                & lr=0.035, depth=3, trees=260               & Boosting \\
+Logistic Elastic Net~\cite{zou2005elasticnet} & C=0.2, $\ell_1$-ratio=0.5, balanced       & Linear   \\
+\bottomrule
+\end{tabularx}
+\end{table}
+\textit{balanced} = \texttt{class\_weight="balanced"}, \textit{bal\_sub} = \texttt{class\_weight="balanced\_subsample"}, \textit{spw} = \texttt{scale\_pos\_weight\_multiplier}.
+
+\begin{table}[H]
+\centering
+\caption{ExtraTrees (8 variants) and RandomForest (6 variants).}
+\label{tab:et_specs}
+\begin{tabularx}{\columnwidth}{lXXXX}
+\toprule
+Model & depth & leaf & trees & class\_weight \\
+\midrule
+ET-1 & 3   & 8  & 320 & balanced \\
+ET-2 & 4   & 12 & 320 & balanced \\
+ET-3 & 5   & 16 & 400 & balanced \\
+ET-4 & 6   & 20 & 400 & balanced \\
+ET-5 & 7   & 24 & 500 & balanced \\
+ET-6 & 8   & 30 & 500 & balanced \\
+ET-7 & --- & 35 & 400 & balanced \\
+ET-8 & 5   & 20 & 500 & none \\
+\midrule
+RF-1 & 4   & 10 & 320 & bal\_sub \\
+RF-2 & 5   & 16 & 400 & bal\_sub \\
+RF-3 & 6   & 20 & 400 & balanced \\
+RF-4 & 7   & 24 & 500 & balanced \\
+RF-5 & 8   & 30 & 500 & none \\
+RF-6 & --- & 40 & 600 & bal\_sub \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{LightGBM (8 variants) and XGBoost (8 variants). \textit{min\_child}: \texttt{min\_child\_samples} for LGB; \texttt{min\_child\_weight} for XGB.}
+\label{tab:lgbm_specs}
+\footnotesize
+\begin{tabularx}{\columnwidth}{l r r r X l}
+\toprule
+Model & lr & min\_child & trees & topology & reg / other \\
+\midrule
+LGB-1 & 0.050 & 10 & 160 & 7 leaves  & spw=0.75 \\
+LGB-2 & 0.040 & 15 & 220 & 11 leaves & spw=0.90 \\
+LGB-3 & 0.035 & 20 & 260 & 15 leaves & spw=1.00 \\
+LGB-4 & 0.030 & 25 & 300 & 23 leaves & spw=1.10 \\
+LGB-5 & 0.025 & 30 & 360 & 31 leaves & spw=1.25 \\
+LGB-6 & 0.020 & 35 & 420 & 39 leaves & spw=1.40 \\
+LGB-7 & 0.040 & 40 & 260 & 15 leaves & col/sub=0.8 \\
+LGB-8 & 0.030 & 50 & 320 & 23 leaves & $\lambda$=3.0 \\
+\midrule
+XGB-1 & 0.050 & 1.0  & 160 & depth=2 & spw=0.75 \\
+XGB-2 & 0.040 & 2.0  & 220 & depth=2 & spw=1.00 \\
+XGB-3 & 0.035 & 3.0  & 260 & depth=3 & spw=1.00 \\
+XGB-4 & 0.030 & 5.0  & 300 & depth=3 & spw=1.20 \\
+XGB-5 & 0.025 & 5.0  & 360 & depth=4 & spw=1.30 \\
+XGB-6 & 0.020 & 8.0  & 420 & depth=4 & spw=1.50 \\
+XGB-7 & 0.030 & 8.0  & 300 & depth=2 & col/sub=0.8 \\
+XGB-8 & 0.025 & 10.0 & 360 & depth=3 & $\lambda$=3.0 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Logistic Elastic Net (6 variants), EBM (3 variants), LambdaMART (3 variants).}
+\label{tab:lmart_specs}
+\begin{tabularx}{\columnwidth}{lXXX}
+\toprule
+Model & Param 1 & Param 2 & Param 3 \\
+\midrule
+LR-1 & C=0.05 & $\ell_1$=0.0 & balanced \\
+LR-2 & C=0.10 & $\ell_1$=0.2 & balanced \\
+LR-3 & C=0.20 & $\ell_1$=0.5 & balanced \\
+LR-4 & C=0.50 & $\ell_1$=0.8 & balanced \\
+LR-5 & C=1.00 & $\ell_1$=1.0 & balanced \\
+LR-6 & C=2.00 & $\ell_1$=0.5 & none \\
+\midrule
+EBM-1 & interact=0 & bins=64  & rounds=3000, bags=4 \\
+EBM-2 & interact=0 & bins=128 & rounds=4000, bags=6 \\
+EBM-3 & interact=2 & bins=64  & rounds=3000, bags=4 \\
+\midrule
+LM-1 & lr=0.05 & trees=160 & leaves=15 \\
+LM-2 & lr=0.04 & trees=240 & leaves=23 \\
+LM-3 & lr=0.03 & trees=320 & leaves=31 \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \end{document}
