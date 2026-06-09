@@ -31,7 +31,7 @@ APPROACH_LABELS: dict[str, str] = {
     APPROACH_EV_PROFIT_TARGETING: "EV profit targeting",
     APPROACH_RANK_FUSION: "Rank fusion committee",
     APPROACH_SEGMENT_TARGETING: "Segment-aware targeting",
-    APPROACH_CLUSTER_SPLIT: "Cluster split (k=2)",
+    APPROACH_CLUSTER_SPLIT: "Cluster split (k=4)",
 }
 
 

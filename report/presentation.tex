@@ -1,0 +1,280 @@
+\documentclass[aspectratio=169]{beamer}
+
+\usetheme{Warsaw}
+\usecolortheme{default}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{xcolor}
+
+\definecolor{PUT-blue}{RGB}{0,84,147}
+\definecolor{PUT-dark}{RGB}{0,45,85}
+\definecolor{highlight}{RGB}{230,126,34}
+\definecolor{commentbg}{RGB}{245,248,252}
+
+\setbeamercolor{palette primary}{bg=PUT-blue,fg=white}
+\setbeamercolor{palette secondary}{bg=PUT-dark,fg=white}
+\setbeamercolor{palette tertiary}{bg=PUT-blue,fg=white}
+\setbeamercolor{structure}{fg=PUT-blue}
+\setbeamertemplate{headline}{}
+\setbeamertemplate{footline}{%
+  \leavevmode%
+  \hbox{%
+    \begin{beamercolorbox}[
+      wd=.40\paperwidth,
+      ht=2.75ex,
+      dp=1.125ex,
+      left,
+      leftskip=.4cm,
+      rightskip=.3cm
+    ]{author in head/foot}%
+      \usebeamerfont{author in head/foot}\insertshortauthor%
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[
+      wd=.48\paperwidth,
+      ht=2.75ex,
+      dp=1.125ex,
+      left,
+      leftskip=.3cm,
+      rightskip=.15cm
+    ]{title in head/foot}%
+      \usebeamerfont{title in head/foot}\insertshorttitle%
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[
+      wd=.12\paperwidth,
+      ht=2.75ex,
+      dp=1.125ex,
+      right,
+      leftskip=.15cm,
+      rightskip=.4cm
+    ]{title in head/foot}%
+      \usebeamerfont{title in head/foot}\insertframenumber/\inserttotalframenumber%
+    \end{beamercolorbox}%
+  }%
+}
+
+\graphicspath{{../notebooks/plots/}}
+
+\newcommand{\slidecomment}[1]{
+    \vspace{0.3em}
+    \begin{beamercolorbox}[wd=\linewidth,rounded=true,sep=0.7ex]{block body}
+        \small #1
+    \end{beamercolorbox}
+}
+
+\title[Cost-Effective Customer Targeting]{Cost-Effective Predictive Modeling for Customer Targeting}
+\author[Pozorski, Florek, Półtorak]{Paweł Pozorski \and Paweł Florek \and Jakub Półtorak}
+\institute{Warsaw University of Technology}
+\date{\today}
+
+\setbeamertemplate{navigation symbols}{}
+
+\begin{document}
+
+\begin{frame}[plain]
+    \titlepage
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Problem}
+    \textbf{Task:} rank 5\,000 customers by acceptance probability; contact top $k \leq 1000$.
+
+    \vspace{0.6em}
+    \textbf{Score}:
+    \[
+        \text{Score} = 10\,\mathrm{TP} - 5\,\mathrm{FP} - 200\,N_{\mathrm{vars}}
+    \]
+
+    \begin{itemize}
+        \item 5\,000 training rows, 500 features, $\approx$50\% positive rate
+        \item each declared feature costs 200 pts ($\approx$20 extra TPs to break even)
+        \item break-even contact: $E[\text{contact}] = 15p - 5 > 0 \Rightarrow p > 1/3$
+    \end{itemize}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Pipeline}
+    \begin{enumerate}
+        \item \textbf{Feature selection} --- 500 $\to$ ranked \texttt{top\_01}--\texttt{top\_26}
+        \item \textbf{Baselines} --- no-skill floors, feature-tax demo
+        \item \textbf{Modelling} --- five targeting strategies
+        \item \textbf{Comparison} --- OOF business score across approaches
+    \end{enumerate}
+
+    \vspace{0.5em}
+    \textbf{Strategies:}
+    \begin{columns}[T,onlytextwidth]
+        \column{0.48\textwidth}
+        \small
+        \begin{itemize}
+            \item Top-$k$ profit curve
+            \item EV profit targeting
+            \item Rank fusion committee
+        \end{itemize}
+        \column{0.48\textwidth}
+        \small
+        \begin{itemize}
+            \item Cluster split (KMeans)
+            \item Segment-aware (GMM)
+        \end{itemize}
+    \end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Feature selection}
+    \textbf{Three stages}
+    \begin{itemize}
+        \item \textbf{Stage 1} (500$\to$80): variance, MI, LightGBM --- combined rank
+        \item \textbf{Stage 2} (80$\to$26): correlation, VIF, LASSO path
+        \item \textbf{Stage 3}: drop-column CV ranking by \emph{business score}
+    \end{itemize}
+
+    \vspace{0.3em}
+    \textbf{Also compared} (diagnostic): MDI, permutation importance, Boruta --- agree on top features, but drop-column CV used for modelling.
+
+    \vspace{0.3em}
+    \begin{columns}[T,onlytextwidth]
+        \column{0.42\textwidth}
+        \centering\footnotesize
+        \textbf{Top features}
+        \begin{tabular}{cl}
+            \toprule
+            Rank & Feature \\
+            \midrule
+            1 & \texttt{var\_389} \\
+            2 & \texttt{var\_308} \\
+            3 & \texttt{var\_93} \\
+            4 & \texttt{var\_87} \\
+            5 & \texttt{var\_254} \\
+            \bottomrule
+        \end{tabular}
+        \column{0.54\textwidth}
+        \centering\footnotesize
+        \textbf{CV business by subset}
+        \begin{tabular}{lr}
+            \toprule
+            Subset & Business \\
+            \midrule
+            \texttt{top\_01} & \textbf{2\,301} \\
+            \texttt{top\_03} & 1\,891 \\
+            \texttt{top\_05} & 1\,490 \\
+            \texttt{top\_08} & 898 \\
+            \texttt{top\_10} & 486 \\
+            \texttt{top\_26} & $-2\,684$ \\
+            \bottomrule
+        \end{tabular}
+    \end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Baselines}
+    Reference models on full train (5-fold CV, top-$k$ business score with penalty).
+
+    \vspace{0.4em}
+    \centering
+    \footnotesize
+    \begin{tabular}{lrrr}
+        \toprule
+        Baseline & Feat. & Business & F1@top-$k$ \\
+        \midrule
+        Prior / uniform dummy & 0 & 2\,475 & 0.666 \\
+        Stratified dummy      & 0 & 2\,474 & 0.665 \\
+        Random ranker (mean)  & 0 & 2\,475 & 0.665 \\
+        Logistic (\texttt{var\_389}) & 1 & 2\,304 & 0.668 \\
+        Logistic (500 feat.)  & 500 & $-97\,493$ & 0.668 \\
+        \bottomrule
+    \end{tabular}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Raw features vs.\ PCA}
+    Logistic regression: first $k$ ranked raw features vs.\ first $k$ PCA components (500 vars scaled).
+
+    \vspace{0.4em}
+    \centering
+    \footnotesize
+    \begin{tabular}{crrrr}
+        \toprule
+        $k$ & F1 raw & F1 PCA & AUC raw & AUC PCA \\
+        \midrule
+        1  & \textbf{0.668} & 0.666 & 0.555 & 0.555 \\
+        5  & \textbf{0.669} & 0.665 & 0.581 & 0.591 \\
+        10 & \textbf{0.669} & 0.666 & 0.594 & 0.598 \\
+        25 & \textbf{0.670} & 0.667 & \textbf{0.603} & 0.598 \\
+        \bottomrule
+    \end{tabular}
+
+    \vspace{0.5em}
+
+    \slidecomment{Raw ranked features win on F1 at every $k$; might indicate more features introduce noise.}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Modelling approaches}
+    \small
+    \begin{table}
+        \begin{tabular}{p{0.28\textwidth}p{0.66\textwidth}}
+            \toprule
+            \textbf{Approach} & \textbf{Idea} \\
+            \midrule
+            Top-$k$ curve &
+            Compare LR / LGBM / XGB; $k^* = \arg\max_k \mathrm{Score}_k$ on OOF curve \\
+            EV targeting &
+            Isotonic calibration; $k = \min(k_{\mathrm{ev}}, k_{\mathrm{elbow}}, k_{\mathrm{nested}})$ \\
+            Rank fusion &
+            4 experts, OOF-weighted $\hat{p}$; 8-feature union penalty \\
+            Cluster split &
+            KMeans ($K{=}4$) + per-cluster logistic on same \texttt{top\_*} \\
+            Segment-aware &
+            GMM on \texttt{top\_10} (latent); logistic on \texttt{top\_03} per segment \\
+            \bottomrule
+        \end{tabular}
+    \end{table}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Results: OOF comparison}
+    \footnotesize
+    \begin{table}
+        \begin{tabular}{lrrrrr}
+            \toprule
+            Approach & Feat. & $k$ & TP & FP & OOF \\
+            \midrule
+            \textbf{Segment targeting} & 3 & 998 & 598 & 400 & \textbf{3\,380} \\
+            Top-$k$ profit curve & 1 & 997 & 565 & 432 & 3\,290 \\
+            Cluster split & 5 & 998 & 618 & 380 & 3\,280 \\
+            EV targeting & 1 & 939 & 536 & 403 & 3\,145 \\
+            Rank fusion & 8 & 994 & 577 & 417 & 2\,085 \\
+            \midrule
+            Prior dummy (ref.) & 0 & 1\,000 & \multicolumn{2}{c}{--} & $\approx$2\,475 \\
+            \bottomrule
+        \end{tabular}
+    \end{table}
+
+    \slidecomment{Best classic config: GMM segments + per-segment logistic on \texttt{top\_03}, $k{=}998$.}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Conclusions}
+    \begin{itemize}
+        \item \textbf{Difficult/noisy data} --- model on entire dataset did not improve F1 (PCA analysis), random .
+        \item \textbf{Feature tax dominates} --- \texttt{var\_389} alone wins CV; more vars $\downarrow$ business score
+        \item \textbf{Local rankers help} --- cluster split (3\,280) $\to$ segment targeting (3\,380)
+    \end{itemize}
+
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}[plain]
+    \centering
+    \Huge \textbf{Thank You}
+    \vspace{1.2em}
+
+    \normalsize
+    Paweł Pozorski \quad Paweł Florek \quad Jakub Półtorak
+\end{frame}
+
+\end{document}

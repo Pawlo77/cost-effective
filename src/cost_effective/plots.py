@@ -40,15 +40,16 @@ def plot_topk_oof_profit_curve(
         label=f"Optimal k={profit_curve.best_k} (score={profit_curve.best_score:.0f})",
     )
     ax.fill_between(curve["k"], curve["score"], alpha=0.2, color=color)
-    ax.set_xlabel("Targets selected (k)", fontsize=12, fontweight="bold")
-    ax.set_ylabel("Business score", fontsize=12, fontweight="bold")
+    ax.set_xlabel("Targets selected (k)", fontsize=14, fontweight="bold")
+    ax.set_ylabel("Business score", fontsize=14, fontweight="bold")
+    ax.tick_params(axis="both", which="major", labelsize=12)
     ax.set_title(
         f"OOF profit curve ({feature_count} feature(s), k ≤ {max_targets})",
-        fontsize=13,
+        fontsize=16,
         fontweight="bold",
         pad=15,
     )
-    ax.legend(fontsize=10, loc="best")
+    ax.legend(fontsize=12, loc="best")
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
     return fig
@@ -143,13 +144,13 @@ def plot_cluster_k_selection_grid(
     ]
     fig.tight_layout()
     fig.subplots_adjust(top=0.88)
-    fig.suptitle("KMeans k selection: inertia + silhouette", y=0.98)
+    fig.suptitle("KMeans k selection: inertia + silhouette", y=0.98, fontweight="bold", fontsize=16)
     fig.legend(
         handles=legend_handles,
         loc="upper center",
         ncol=2,
         frameon=True,
-        fontsize=10,
+        fontsize=12,
         columnspacing=2.0,
         handletextpad=0.8,
         bbox_to_anchor=(0.5, 0.94),
@@ -256,13 +257,13 @@ def plot_approaches_comparison(
     plot_df = comparison.dropna(subset=[metric]).copy()
     plot_df = plot_df.sort_values(metric, ascending=False)
     fig, ax = plt.subplots(figsize=(10, 5))
-    palette = sns.color_palette("husl", n_colors=len(plot_df))
+    # palette = sns.color_palette("husl", n_colors=len(plot_df))
     sns.barplot(
         data=plot_df,
         x="label",
         y=metric,
         hue="label",
-        palette=palette,
+        # palette=palette,
         dodge=False,
         legend=False,
         ax=ax,
