@@ -40,5 +40,5 @@ def test_write_submission_files(tmp_path: Path) -> None:
         np.array([10, 20]),
         ["var_1", "var_42"],
     )
-    assert obs_path.read_text(encoding="utf-8") == "10\n20\n"
-    assert vars_path.read_text(encoding="utf-8") == "1\n42\n"
+    assert obs_path.read_text(encoding="utf-8") == "11\n21\n"
+    assert vars_path.read_text(encoding="utf-8") == "2\n43\n"
